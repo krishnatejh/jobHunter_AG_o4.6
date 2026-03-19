@@ -1,0 +1,30 @@
+{
+  "mastercard": {
+    "company_slug": "mastercard",
+    "wd_number": "wd1",
+    "career_slug": "CorporateCareers",
+    "base_url": "https://mastercard.wd1.myworkdayjobs.com",
+    "company_name": "Mastercard"
+  },
+  "visa": {
+    "company_slug": "upenn",
+    "wd_number": "wd1",
+    "career_slug": "careers-at-penn",
+    "base_url": "https://upenn.wd1.myworkdayjobs.com",
+    "company_name": "Visa"
+  },
+  "visa inc": {
+    "company_slug": "workday",
+    "wd_number": "wd5",
+    "career_slug": "Workday",
+    "base_url": "https://workday.wd5.myworkdayjobs.com",
+    "company_name": "Visa Inc"
+  },
+  "wells fargo": {
+    "company_slug": "wf",
+    "wd_number": "wd1",
+    "career_slug": "wellsfargojobs",
+    "base_url": "https://wf.wd1.myworkdayjobs.com",
+    "company_name": "Wells Fargo"
+  }
+}

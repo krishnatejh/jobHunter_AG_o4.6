@@ -1,0 +1,51 @@
+{
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "location_preferences": [
+    "Remote",
+    "India",
+    "Bangalore",
+    "Pune",
+    "Bengaluru",
+    "Mysore"
+  ],
+  "recency_days": 30,
+  "companies": [
+    {
+      "name": "Mastercard",
+      "ats": "workday",
+      "base_url": "https://mastercard.wd1.myworkdayjobs.com",
+      "company_slug": "mastercard",
+      "career_slug": "CorporateCareers",
+      "wd_number": "wd1",
+      "onboarded_at": "2026-03-15T15:27:46"
+    },
+    {
+      "name": "Visa",
+      "ats": "smartrecruiters",
+      "base_url": "https://api.smartrecruiters.com/v1/companies/Visa/postings",
+      "company_slug": "Visa",
+      "career_slug": "",
+      "wd_number": "",
+      "onboarded_at": "2026-03-15T15:55:58"
+    },
+    {
+      "name": "Wells Fargo",
+      "ats": "workday",
+      "base_url": "https://wf.wd1.myworkdayjobs.com",
+      "company_slug": "wf",
+      "career_slug": "wellsfargojobs",
+      "wd_number": "wd1",
+      "onboarded_at": "2026-03-17T19:34:47"
+    },
+    {
+      "name": "Razorpay",
+      "ats": "greenhouse",
+      "base_url": "https://boards-api.greenhouse.io/v1/boards/razorpaysoftwareprivatelimited/jobs",
+      "company_slug": "razorpaysoftwareprivatelimited",
+      "board_token": "razorpaysoftwareprivatelimited",
+      "career_slug": "",
+      "wd_number": "",
+      "onboarded_at": "2026-03-19T13:28:59"
+    }
+  ]
+}

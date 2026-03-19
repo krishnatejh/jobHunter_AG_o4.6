@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Match Report - {{ generated_at }}</title>
+    <style>
+        :root {
+            --bg: #f5f1e8;
+            --paper: #fffdf8;
+            --paper-strong: #fff8ef;
+            --ink: #1f2430;
+            --muted: #6a6f7d;
+            --line: #ded4c4;
+            --accent: #1d5c63;
+            --accent-soft: #dbecee;
+            --good: #2563eb;
+            --excellent: #15803d;
+            --warn: #b45309;
+            --weak: #b91c1c;
+            --shadow: 0 18px 45px rgba(47, 43, 34, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(29, 92, 99, 0.08), transparent 28%),
+                linear-gradient(180deg, #f7f3eb 0%, #efe6d7 100%);
+            line-height: 1.5;
+        }
+
+        .container {
+            width: min(1280px, calc(100% - 32px));
+            margin: 24px auto 48px;
+        }
+
+        .hero {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .eyebrow {
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            font-size: 0.76rem;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 3vw, 3rem);
+            line-height: 1.05;
+            margin-bottom: 10px;
+        }
+
+        .subhead {
+            color: var(--muted);
+            max-width: 850px;
+            font-size: 1rem;
+            margin-bottom: 18px;
+        }
+
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .meta-chip,
+        .nav-chip,
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: var(--paper-strong);
+            text-decoration: none;
+            color: inherit;
+            font-size: 0.9rem;
+        }
+
+        .summary-grid,
+        .nav-grid,
+        .filter-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .summary-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            margin: 20px 0;
+        }
+
+        .summary-card,
+        .panel {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            box-shadow: var(--shadow);
+        }
+
+        .summary-card {
+            padding: 18px;
+        }
+
+        .summary-card .label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .value.excellent { color: var(--excellent); }
+        .value.good { color: var(--good); }
+        .value.pending { color: var(--warn); }
+        .value.total { color: var(--accent); }
+
+        .nav-grid {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            margin-top: 18px;
+        }
+
+        .nav-chip {
+            justify-content: space-between;
+            padding: 16px 18px;
+            border-radius: 20px;
+            color: var(--ink);
+        }
+
+        .nav-chip strong {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .nav-chip span {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .panel {
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .panel-header p {
+            margin: 6px 0 0;
+            color: var(--muted);
+        }
+
+        .filter-grid {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            margin-top: 18px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 11px 12px;
+            background: #fffdfa;
+            color: var(--ink);
+            font: inherit;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 960px;
+            background: #fffdfa;
+        }
+
+        th,
+        td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #ece4d7;
+            text-align: left;
+            vertical-align: top;
+            font-size: 0.95rem;
+        }
+
+        thead th {
+            background: #f7efe3;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            font-size: 0.76rem;
+            position: sticky;
+            top: 0;
+        }
+
+        tbody tr:hover {
+            background: #fcf6ee;
+        }
+
+        .table-role a,
+        .detail-title a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .table-role a:hover,
+        .detail-title a:hover {
+            text-decoration: underline;
+        }
+
+        .score-pill,
+        .rating-pill,
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .score-pill.excellent,
+        .rating-pill.excellent {
+            background: rgba(21, 128, 61, 0.1);
+            color: var(--excellent);
+            border-color: rgba(21, 128, 61, 0.18);
+        }
+
+        .score-pill.good,
+        .rating-pill.good {
+            background: rgba(37, 99, 235, 0.1);
+            color: var(--good);
+            border-color: rgba(37, 99, 235, 0.18);
+        }
+
+        .score-pill.moderate,
+        .rating-pill.moderate {
+            background: rgba(180, 83, 9, 0.1);
+            color: var(--warn);
+            border-color: rgba(180, 83, 9, 0.18);
+        }
+
+        .score-pill.weak,
+        .rating-pill.weak {
+            background: rgba(185, 28, 28, 0.1);
+            color: var(--weak);
+            border-color: rgba(185, 28, 28, 0.18);
+        }
+
+        .status-pill.new {
+            background: rgba(29, 92, 99, 0.11);
+            color: var(--accent);
+            border-color: rgba(29, 92, 99, 0.2);
+        }
+
+        .status-pill.cached {
+            background: rgba(106, 111, 125, 0.11);
+            color: #515766;
+            border-color: rgba(106, 111, 125, 0.2);
+        }
+
+        .status-pill.reposted {
+            background: rgba(146, 64, 14, 0.12);
+            color: #92400e;
+            border-color: rgba(146, 64, 14, 0.2);
+        }
+
+        .ghost-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .ghost-link:hover {
+            text-decoration: underline;
+        }
+
+        .detail-stack {
+            display: grid;
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        .detail-card {
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            padding: 18px;
+            background: linear-gradient(180deg, #fffdfa 0%, #fdf8ef 100%);
+        }
+
+        .detail-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+
+        .detail-meta {
+            color: var(--muted);
+            margin-top: 6px;
+            font-size: 0.92rem;
+        }
+
+        .detail-verdict {
+            margin: 12px 0;
+            font-size: 1rem;
+        }
+
+        .tag-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            display: inline-flex;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            border: 1px solid transparent;
+        }
+
+        .tag.strength {
+            background: rgba(21, 128, 61, 0.08);
+            color: var(--excellent);
+            border-color: rgba(21, 128, 61, 0.15);
+        }
+
+        .tag.gap {
+            background: rgba(185, 28, 28, 0.08);
+            color: var(--weak);
+            border-color: rgba(185, 28, 28, 0.15);
+        }
+
+        .empty-state {
+            display: none;
+            padding: 16px;
+            border: 1px dashed var(--line);
+            border-radius: 14px;
+            color: var(--muted);
+            margin-top: 12px;
+            background: #fffdfa;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            padding: 10px 0 24px;
+        }
+
+        @media (max-width: 860px) {
+            .container {
+                width: min(100% - 20px, 1280px);
+            }
+
+            .hero,
+            .panel {
+                padding: 18px;
+                border-radius: 20px;
+            }
+
+            .detail-top,
+            .panel-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <section class="hero">
+            <div class="eyebrow">Job Hunter Report</div>
+            <h1>See the best opportunities first.</h1>
+            <p class="subhead">
+                This report is split into four buckets so the high-signal roles do not get buried:
+                new findings, cached findings, borderline roles, and a lightweight waitlist.
+            </p>
+            <div class="meta">
+                <span class="meta-chip">Generated {{ generated_at }}</span>
+                <span class="meta-chip">Resume: {{ resume_name }}</span>
+                <span class="meta-chip">Model: {{ model }}</span>
+                <span class="meta-chip">Companies scanned: {{ companies | length }}</span>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="label">New Strong Findings</div>
+                    <div class="value excellent">{{ new_findings | length }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Cached Strong Findings</div>
+                    <div class="value good">{{ cached_findings | length }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Borderline</div>
+                    <div class="value pending">{{ borderline_jobs | length }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Waitlist</div>
+                    <div class="value pending">{{ waitlist_jobs | length }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Scored Jobs</div>
+                    <div class="value total">{{ total_jobs }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Total Scanned</div>
+                    <div class="value total">{{ filter_stats.total_scanned }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Filtered Out</div>
+                    <div class="value pending">{{ filter_stats.skipped_recency + filter_stats.skipped_location }}</div>
+                </div>
+            </div>
+
+            <div class="nav-grid">
+                <a class="nav-chip" href="#new-findings">
+                    <span>
+                        <strong>1. New Findings</strong>
+                        Priority roles scored Good or Excellent, followed by analysis.
+                    </span>
+                    <strong>{{ new_findings | length }}</strong>
+                </a>
+                <a class="nav-chip" href="#cached-findings">
+                    <span>
+                        <strong>2. Cached Findings</strong>
+                        Previously analyzed Good or Excellent roles worth revisiting.
+                    </span>
+                    <strong>{{ cached_findings | length }}</strong>
+                </a>
+                <a class="nav-chip" href="#borderline-findings">
+                    <span>
+                        <strong>3. Borderline</strong>
+                        Scores from 50 to 69 that may still be worth a closer look.
+                    </span>
+                    <strong>{{ borderline_jobs | length }}</strong>
+                </a>
+                <a class="nav-chip" href="#waitlist-findings">
+                    <span>
+                        <strong>4. Waitlist</strong>
+                        Low-scoring jobs kept as a compact external-link list.
+                    </span>
+                    <strong>{{ waitlist_jobs | length }}</strong>
+                </a>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Global Filters</h2>
+                    <p>These filters apply across all four tables and the analysis cards in the first three sections.</p>
+                </div>
+                <a class="ghost-link" href="#" onclick="resetFilters(); return false;">Reset filters</a>
+            </div>
+
+            <div class="filter-grid">
+                <div>
+                    <label for="searchFilter">Search role or verdict</label>
+                    <input id="searchFilter" type="text" placeholder="Search title, company, verdict">
+                </div>
+                <div>
+                    <label for="scoreFilter">Minimum score</label>
+                    <select id="scoreFilter">
+                        <option value="0">All scores</option>
+                        <option value="70">Good and above</option>
+                        <option value="85">Excellent only</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="companyFilter">Company</label>
+                    <select id="companyFilter">
+                        <option value="">All companies</option>
+                        {% for company in filter_options.companies %}
+                        <option value="{{ company | lower }}">{{ company }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="locationFilter">Location</label>
+                    <input id="locationFilter" type="text" placeholder="India, Remote, Bangalore">
+                </div>
+                <div>
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter">
+                        <option value="">All statuses</option>
+                        <option value="new">New</option>
+                        <option value="reposted">Reposted</option>
+                        <option value="cached">Cached</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="ratingFilter">Rating</label>
+                    <select id="ratingFilter">
+                        <option value="">All ratings</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Good">Good</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="Weak">Weak</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" id="new-findings">
+            <div class="panel-header">
+                <div>
+                    <h2>1. New Findings</h2>
+                    <p>Only new or reposted roles rated Good or Excellent. This is the section to review first.</p>
+                </div>
+                <span class="badge">Good and Excellent only</span>
+            </div>
+
+            <div class="table-wrap">
+                <table data-section="new-findings">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Role</th>
+                            <th>Company</th>
+                            <th>Location</th>
+                            <th>Score</th>
+                            <th>Rating</th>
+                            <th>Status</th>
+                            <th>Posted</th>
+                            <th>Job ID</th>
+                            <th>Apply</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in new_findings %}
+                        <tr
+                            class="filterable-row"
+                            data-group="new"
+                            data-company="{{ (job.company or 'Unknown') | lower }}"
+                            data-location="{{ (job.location or '') | lower }}"
+                            data-score="{{ job.analysis.score }}"
+                            data-status="{{ job.cache_status }}"
+                            data-rating="{{ job.score_label }}"
+                            data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '')) | lower }}"
+                            data-detail-id="{{ job.anchor_id }}"
+                        >
+                            <td>{{ loop.index }}</td>
+                            <td class="table-role"><a href="#{{ job.anchor_id }}">{{ job.title }}</a></td>
+                            <td>{{ job.company }}</td>
+                            <td>{{ job.location or '-' }}</td>
+                            <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
+                            <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
+                            <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>
+                            <td>{{ job.posted_date or '-' }}</td>
+                            <td>{{ job.job_req_id or '-' }}</td>
+                            <td><a class="ghost-link" href="{{ job.url }}" target="_blank">Open</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty-state" data-empty-for="new-findings">No rows match the current filters in New Findings.</div>
+
+            <div class="detail-stack">
+                {% for job in new_findings %}
+                <article
+                    class="detail-card filterable-detail"
+                    id="{{ job.anchor_id }}"
+                    data-group="new-findings"
+                    data-company="{{ (job.company or 'Unknown') | lower }}"
+                    data-location="{{ (job.location or '') | lower }}"
+                    data-score="{{ job.analysis.score }}"
+                    data-status="{{ job.cache_status }}"
+                    data-rating="{{ job.score_label }}"
+                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '') ~ ' ' ~ (job.analysis.thinking or '')) | lower }}"
+                >
+                    <div class="detail-top">
+                        <div>
+                            <div class="detail-title"><a href="{{ job.url }}" target="_blank">{{ job.title }}</a></div>
+                            <div class="detail-meta">
+                                {{ job.company }} | {{ job.location or 'Location not specified' }} | {{ job.posted_date or 'Posted date unavailable' }} | {{ job.status_label }}
+                            </div>
+                        </div>
+                        <div class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }} {{ job.score_label }}</div>
+                    </div>
+
+                    <div class="detail-verdict">{{ job.analysis.verdict }}</div>
+
+                    {% if job.analysis.strengths %}
+                    <div class="tag-row">
+                        {% for strength in job.analysis.strengths %}
+                        <span class="tag strength">{{ strength }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if job.analysis.gaps %}
+                    <div class="tag-row">
+                        {% for gap in job.analysis.gaps %}
+                        <span class="tag gap">{{ gap }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel" id="cached-findings">
+            <div class="panel-header">
+                <div>
+                    <h2>2. Cached Findings</h2>
+                    <p>Good or Excellent roles already analyzed in a previous run, with full LLM analysis preserved below.</p>
+                </div>
+                <span class="badge">Cached only</span>
+            </div>
+
+            <div class="table-wrap">
+                <table data-section="cached-findings">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Role</th>
+                            <th>Company</th>
+                            <th>Location</th>
+                            <th>Score</th>
+                            <th>Rating</th>
+                            <th>Status</th>
+                            <th>Posted</th>
+                            <th>Job ID</th>
+                            <th>Apply</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in cached_findings %}
+                        <tr
+                            class="filterable-row"
+                            data-group="cached"
+                            data-company="{{ (job.company or 'Unknown') | lower }}"
+                            data-location="{{ (job.location or '') | lower }}"
+                            data-score="{{ job.analysis.score }}"
+                            data-status="{{ job.cache_status }}"
+                            data-rating="{{ job.score_label }}"
+                            data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '')) | lower }}"
+                            data-detail-id="{{ job.anchor_id }}"
+                        >
+                            <td>{{ loop.index }}</td>
+                            <td class="table-role"><a href="#{{ job.anchor_id }}">{{ job.title }}</a></td>
+                            <td>{{ job.company }}</td>
+                            <td>{{ job.location or '-' }}</td>
+                            <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
+                            <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
+                            <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>
+                            <td>{{ job.posted_date or '-' }}</td>
+                            <td>{{ job.job_req_id or '-' }}</td>
+                            <td><a class="ghost-link" href="{{ job.url }}" target="_blank">Open</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty-state" data-empty-for="cached-findings">No rows match the current filters in Cached Findings.</div>
+
+            <div class="detail-stack">
+                {% for job in cached_findings %}
+                <article
+                    class="detail-card filterable-detail"
+                    id="{{ job.anchor_id }}"
+                    data-group="cached-findings"
+                    data-company="{{ (job.company or 'Unknown') | lower }}"
+                    data-location="{{ (job.location or '') | lower }}"
+                    data-score="{{ job.analysis.score }}"
+                    data-status="{{ job.cache_status }}"
+                    data-rating="{{ job.score_label }}"
+                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '') ~ ' ' ~ (job.analysis.thinking or '')) | lower }}"
+                >
+                    <div class="detail-top">
+                        <div>
+                            <div class="detail-title"><a href="{{ job.url }}" target="_blank">{{ job.title }}</a></div>
+                            <div class="detail-meta">
+                                {{ job.company }} | {{ job.location or 'Location not specified' }} | {{ job.posted_date or 'Posted date unavailable' }} | {{ job.status_label }}
+                            </div>
+                        </div>
+                        <div class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }} {{ job.score_label }}</div>
+                    </div>
+
+                    <div class="detail-verdict">{{ job.analysis.verdict }}</div>
+
+                    {% if job.analysis.strengths %}
+                    <div class="tag-row">
+                        {% for strength in job.analysis.strengths %}
+                        <span class="tag strength">{{ strength }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if job.analysis.gaps %}
+                    <div class="tag-row">
+                        {% for gap in job.analysis.gaps %}
+                        <span class="tag gap">{{ gap }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel" id="borderline-findings">
+            <div class="panel-header">
+                <div>
+                    <h2>3. Borderline</h2>
+                    <p>Scores from 50 to 69, shown with LLM analysis so near-matches are easier to review.</p>
+                </div>
+                <span class="badge">Scores 50-69</span>
+            </div>
+
+            <div class="table-wrap">
+                <table data-section="borderline-findings">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Role</th>
+                            <th>Company</th>
+                            <th>Location</th>
+                            <th>Score</th>
+                            <th>Rating</th>
+                            <th>Status</th>
+                            <th>Posted</th>
+                            <th>Job ID</th>
+                            <th>Apply</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in borderline_jobs %}
+                        <tr
+                            class="filterable-row"
+                            data-group="borderline"
+                            data-company="{{ (job.company or 'Unknown') | lower }}"
+                            data-location="{{ (job.location or '') | lower }}"
+                            data-score="{{ job.analysis.score }}"
+                            data-status="{{ job.cache_status }}"
+                            data-rating="{{ job.score_label }}"
+                            data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '')) | lower }}"
+                            data-detail-id="{{ job.anchor_id }}"
+                        >
+                            <td>{{ loop.index }}</td>
+                            <td class="table-role"><a href="#{{ job.anchor_id }}">{{ job.title }}</a></td>
+                            <td>{{ job.company }}</td>
+                            <td>{{ job.location or '-' }}</td>
+                            <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
+                            <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
+                            <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>
+                            <td>{{ job.posted_date or '-' }}</td>
+                            <td>{{ job.job_req_id or '-' }}</td>
+                            <td><a class="ghost-link" href="{{ job.url }}" target="_blank">Open</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty-state" data-empty-for="borderline-findings">No rows match the current filters in Borderline.</div>
+
+            <div class="detail-stack">
+                {% for job in borderline_jobs %}
+                <article
+                    class="detail-card filterable-detail"
+                    id="{{ job.anchor_id }}"
+                    data-group="borderline-findings"
+                    data-company="{{ (job.company or 'Unknown') | lower }}"
+                    data-location="{{ (job.location or '') | lower }}"
+                    data-score="{{ job.analysis.score }}"
+                    data-status="{{ job.cache_status }}"
+                    data-rating="{{ job.score_label }}"
+                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '') ~ ' ' ~ (job.analysis.thinking or '')) | lower }}"
+                >
+                    <div class="detail-top">
+                        <div>
+                            <div class="detail-title"><a href="{{ job.url }}" target="_blank">{{ job.title }}</a></div>
+                            <div class="detail-meta">
+                                {{ job.company }} | {{ job.location or 'Location not specified' }} | {{ job.posted_date or 'Posted date unavailable' }} | {{ job.status_label }}
+                            </div>
+                        </div>
+                        <div class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }} {{ job.score_label }}</div>
+                    </div>
+
+                    <div class="detail-verdict">{{ job.analysis.verdict }}</div>
+
+                    {% if job.analysis.strengths %}
+                    <div class="tag-row">
+                        {% for strength in job.analysis.strengths %}
+                        <span class="tag strength">{{ strength }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if job.analysis.gaps %}
+                    <div class="tag-row">
+                        {% for gap in job.analysis.gaps %}
+                        <span class="tag gap">{{ gap }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel" id="waitlist-findings">
+            <div class="panel-header">
+                <div>
+                    <h2>4. Waitlist</h2>
+                    <p>Jobs below 50, kept as a compact table without LLM analysis cards.</p>
+                </div>
+                <span class="badge">Scores below 50</span>
+            </div>
+
+            <div class="table-wrap">
+                <table data-section="waitlist-findings">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Role</th>
+                            <th>Company</th>
+                            <th>Location</th>
+                            <th>Score</th>
+                            <th>Rating</th>
+                            <th>Status</th>
+                            <th>Posted</th>
+                            <th>Job ID</th>
+                            <th>Apply</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in waitlist_jobs %}
+                        <tr
+                            class="filterable-row"
+                            data-group="waitlist"
+                            data-company="{{ (job.company or 'Unknown') | lower }}"
+                            data-location="{{ (job.location or '') | lower }}"
+                            data-score="{{ job.analysis.score }}"
+                            data-status="{{ job.cache_status }}"
+                            data-rating="{{ job.score_label }}"
+                            data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '')) | lower }}"
+                        >
+                            <td>{{ loop.index }}</td>
+                            <td class="table-role"><a href="{{ job.url }}" target="_blank">{{ job.title }}</a></td>
+                            <td>{{ job.company }}</td>
+                            <td>{{ job.location or '-' }}</td>
+                            <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
+                            <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
+                            <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>
+                            <td>{{ job.posted_date or '-' }}</td>
+                            <td>{{ job.job_req_id or '-' }}</td>
+                            <td><a class="ghost-link" href="{{ job.url }}" target="_blank">Open</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty-state" data-empty-for="waitlist-findings">No rows match the current filters in Waitlist.</div>
+        </section>
+
+        <div class="footer">
+            Job Hunter Agent report for {{ resume_name }}. Strong and borderline roles keep their analysis attached, while the Waitlist stays lightweight.
+        </div>
+    </div>
+
+    <script>
+        const filters = {
+            search: document.getElementById('searchFilter'),
+            score: document.getElementById('scoreFilter'),
+            company: document.getElementById('companyFilter'),
+            location: document.getElementById('locationFilter'),
+            status: document.getElementById('statusFilter'),
+            rating: document.getElementById('ratingFilter')
+        };
+
+        function matchesRow(el) {
+            const text = (el.dataset.text || '');
+            const company = el.dataset.company || '';
+            const location = el.dataset.location || '';
+            const score = Number(el.dataset.score || '0');
+            const status = el.dataset.status || '';
+            const rating = el.dataset.rating || '';
+
+            const searchValue = filters.search.value.trim().toLowerCase();
+            const minScore = Number(filters.score.value || '0');
+            const companyValue = filters.company.value;
+            const locationValue = filters.location.value.trim().toLowerCase();
+            const statusValue = filters.status.value;
+            const ratingValue = filters.rating.value;
+
+            if (searchValue && !text.includes(searchValue)) return false;
+            if (score < minScore) return false;
+            if (companyValue && company !== companyValue) return false;
+            if (locationValue && !location.includes(locationValue)) return false;
+            if (statusValue && status !== statusValue) return false;
+            if (ratingValue && rating !== ratingValue) return false;
+            return true;
+        }
+
+        function applyFilters() {
+            const visibleDetailIds = new Set();
+
+            document.querySelectorAll('.filterable-row').forEach((row) => {
+                const visible = matchesRow(row);
+                row.style.display = visible ? '' : 'none';
+                if (visible && row.dataset.detailId) {
+                    visibleDetailIds.add(row.dataset.detailId);
+                }
+            });
+
+            document.querySelectorAll('.filterable-detail').forEach((card) => {
+                const visible = matchesRow(card) && visibleDetailIds.has(card.id);
+                card.style.display = visible ? '' : 'none';
+            });
+
+            ['new-findings', 'cached-findings', 'borderline-findings', 'waitlist-findings'].forEach((section) => {
+                const table = document.querySelector(`table[data-section="${section}"] tbody`);
+                const rows = table ? Array.from(table.querySelectorAll('tr')) : [];
+                const visibleCount = rows.filter((row) => row.style.display !== 'none').length;
+                const empty = document.querySelector(`[data-empty-for="${section}"]`);
+                if (empty) {
+                    empty.style.display = visibleCount === 0 ? 'block' : 'none';
+                }
+            });
+        }
+
+        function resetFilters() {
+            Object.values(filters).forEach((el) => {
+                if (!el) return;
+                el.value = '';
+            });
+            filters.score.value = '0';
+            applyFilters();
+        }
+
+        Object.values(filters).forEach((el) => {
+            el.addEventListener('input', applyFilters);
+            el.addEventListener('change', applyFilters);
+        });
+
+        applyFilters();
+        window.resetFilters = resetFilters;
+    </script>
+</body>
+</html>
