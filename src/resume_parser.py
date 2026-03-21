@@ -1,18 +1,12 @@
-"""Resume parser — extracts text from PDF resumes."""
+"""Resume parser -- extracts text from PDF resumes."""
 
 from pathlib import Path
+
 from pypdf import PdfReader
 
 
 def parse_resume(pdf_path: str) -> str:
-    """Extract all text from a PDF resume.
-
-    Args:
-        pdf_path: Path to the PDF file.
-
-    Returns:
-        Concatenated text from all pages.
-    """
+    """Extract all text from a PDF resume."""
     path = Path(pdf_path)
     if not path.exists():
         raise FileNotFoundError(f"Resume not found: {path}")

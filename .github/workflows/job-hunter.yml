@@ -1,8 +1,8 @@
-name: Job Hunter Automation
+﻿name: Job Hunter Automation
 
 on:
   schedule:
-    - cron: "30 3 * * *"
+    - cron: "0 14 * * *"
   workflow_dispatch:
     inputs:
       force_rescore:
@@ -22,7 +22,7 @@ permissions:
 jobs:
   run-job-hunter:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -89,3 +89,5 @@ jobs:
             output/last_run_summary.json
           if-no-files-found: warn
           retention-days: 14
+
+

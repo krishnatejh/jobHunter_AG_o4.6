@@ -323,6 +323,14 @@
             text-decoration: underline;
         }
 
+        .reason-cell {
+            min-width: 280px;
+            max-width: 420px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
         .detail-stack {
             display: grid;
             gap: 16px;
@@ -382,6 +390,23 @@
             border-color: rgba(185, 28, 28, 0.15);
         }
 
+        .fact-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0 2px;
+        }
+
+        .fact-chip {
+            display: inline-flex;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            color: var(--accent);
+            background: var(--accent-soft);
+            border: 1px solid rgba(29, 92, 99, 0.15);
+        }
+
         .empty-state {
             display: none;
             padding: 16px;
@@ -433,6 +458,12 @@
                 <span class="meta-chip">Model: {{ model }}</span>
                 <span class="meta-chip">Companies scanned: {{ companies | length }}</span>
             </div>
+            {% if preferred_locations %}
+            <p class="subhead" style="margin-top: 14px; margin-bottom: 0;">
+                Preferred locations honored during scoring: {{ preferred_locations | join(', ') }}.
+                Jobs in these locations are treated as location matches, not relocation risks.
+            </p>
+            {% endif %}
 
             <div class="summary-grid">
                 <div class="summary-card">
@@ -483,7 +514,7 @@
                 <a class="nav-chip" href="#borderline-findings">
                     <span>
                         <strong>3. Borderline</strong>
-                        Scores from 50 to 69 that may still be worth a closer look.
+                        Scores from 40 to 69 that may still be worth a closer look.
                     </span>
                     <strong>{{ borderline_jobs | length }}</strong>
                 </a>
@@ -620,7 +651,7 @@
                     data-score="{{ job.analysis.score }}"
                     data-status="{{ job.cache_status }}"
                     data-rating="{{ job.score_label }}"
-                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '') ~ ' ' ~ (job.analysis.thinking or '')) | lower }}"
+                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '')) | lower }}"
                 >
                     <div class="detail-top">
                         <div>
@@ -633,6 +664,14 @@
                     </div>
 
                     <div class="detail-verdict">{{ job.analysis.verdict }}</div>
+
+                    {% if job.analysis_facts %}
+                    <div class="fact-row">
+                        {% for fact in job.analysis_facts %}
+                        <span class="fact-chip">{{ fact }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
 
                     {% if job.analysis.strengths %}
                     <div class="tag-row">
@@ -720,7 +759,7 @@
                     data-score="{{ job.analysis.score }}"
                     data-status="{{ job.cache_status }}"
                     data-rating="{{ job.score_label }}"
-                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '') ~ ' ' ~ (job.analysis.thinking or '')) | lower }}"
+                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '')) | lower }}"
                 >
                     <div class="detail-top">
                         <div>
@@ -733,6 +772,14 @@
                     </div>
 
                     <div class="detail-verdict">{{ job.analysis.verdict }}</div>
+
+                    {% if job.analysis_facts %}
+                    <div class="fact-row">
+                        {% for fact in job.analysis_facts %}
+                        <span class="fact-chip">{{ fact }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
 
                     {% if job.analysis.strengths %}
                     <div class="tag-row">
@@ -758,9 +805,9 @@
             <div class="panel-header">
                 <div>
                     <h2>3. Borderline</h2>
-                    <p>Scores from 50 to 69, shown with LLM analysis so near-matches are easier to review.</p>
+                    <p>Scores from 40 to 69, shown with LLM analysis so near-matches are easier to review.</p>
                 </div>
-                <span class="badge">Scores 50-69</span>
+                <span class="badge">Scores 40-69</span>
             </div>
 
             <div class="table-wrap">
@@ -820,7 +867,7 @@
                     data-score="{{ job.analysis.score }}"
                     data-status="{{ job.cache_status }}"
                     data-rating="{{ job.score_label }}"
-                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '') ~ ' ' ~ (job.analysis.thinking or '')) | lower }}"
+                    data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '')) | lower }}"
                 >
                     <div class="detail-top">
                         <div>
@@ -833,6 +880,14 @@
                     </div>
 
                     <div class="detail-verdict">{{ job.analysis.verdict }}</div>
+
+                    {% if job.analysis_facts %}
+                    <div class="fact-row">
+                        {% for fact in job.analysis_facts %}
+                        <span class="fact-chip">{{ fact }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
 
                     {% if job.analysis.strengths %}
                     <div class="tag-row">
@@ -858,9 +913,9 @@
             <div class="panel-header">
                 <div>
                     <h2>4. Waitlist</h2>
-                    <p>Jobs below 50, kept as a compact table without LLM analysis cards.</p>
+                    <p>Jobs below 40, kept as a compact table with a short reason summary instead of full analysis cards.</p>
                 </div>
-                <span class="badge">Scores below 50</span>
+                <span class="badge">Scores below 40</span>
             </div>
 
             <div class="table-wrap">
@@ -873,6 +928,7 @@
                             <th>Location</th>
                             <th>Score</th>
                             <th>Rating</th>
+                            <th>Why Waitlist</th>
                             <th>Status</th>
                             <th>Posted</th>
                             <th>Job ID</th>
@@ -889,7 +945,7 @@
                             data-score="{{ job.analysis.score }}"
                             data-status="{{ job.cache_status }}"
                             data-rating="{{ job.score_label }}"
-                            data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '')) | lower }}"
+                            data-text="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ (job.analysis.verdict or '') ~ ' ' ~ (job.waitlist_reason or '')) | lower }}"
                         >
                             <td>{{ loop.index }}</td>
                             <td class="table-role"><a href="{{ job.url }}" target="_blank">{{ job.title }}</a></td>
@@ -897,6 +953,7 @@
                             <td>{{ job.location or '-' }}</td>
                             <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
                             <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
+                            <td class="reason-cell" title="{{ job.waitlist_reason }}">{{ job.waitlist_reason }}</td>
                             <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>
                             <td>{{ job.posted_date or '-' }}</td>
                             <td>{{ job.job_req_id or '-' }}</td>
@@ -910,7 +967,7 @@
         </section>
 
         <div class="footer">
-            Job Hunter Agent report for {{ resume_name }}. Strong and borderline roles keep their analysis attached, while the Waitlist stays lightweight.
+            Job Hunter Agent report for {{ resume_name }}. Strong and borderline roles keep their analysis attached, while the Waitlist stays lightweight with concise blocker summaries.
         </div>
     </div>
 

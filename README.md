@@ -1,195 +1,120 @@
-# Job Hunter Agent  Phase 1
+﻿# Job Hunter Agent
 
-An intelligent, automated agent designed to discover, filter, and score job opportunities from targeted company career pages against a candidate's resume using LLMs.
+An automated job discovery and scoring pipeline that scrapes supported ATS boards, filters jobs by recency and location, scores them against a resume with an LLM, caches results, and produces an interactive HTML report.
 
----
+## What It Does
 
-## Requirements & Problem Statement
+- supports multiple ATS sources:
+  - Workday
+  - SmartRecruiters
+  - Greenhouse
+- filters jobs before scoring using:
+  - `recency_days`
+  - `location_preferences`
+- scores matched jobs with an LLM using:
+  - resume text
+  - configured preferred locations
+  - optional `candidate_preferences` from `config.json`
+- caches scored jobs in SQLite to avoid repeated LLM calls
+- generates a report with four sections:
+  - `New Findings`
+  - `Cached Findings`
+  - `Borderline`
+  - `Waitlist`
+- supports scheduled/manual GitHub Actions runs and Telegram delivery
 
-Job hunting traditionally involves manually monitoring dozens of company career pages, filtering through irrelevant roles (wrong location, old postings), and reading dense descriptions to determine fit. 
+## Current Scoring Model
 
-**Phase 1 Objective:** Automate the manual discovery, filtering, and evaluation pipeline.
-- Discover career pages automatically given only a company name.
-- Filter out stale jobs and mismatched locations natively without LLM costs.
-- Parse a candidate's resume and intelligently score remaining roles for fit.
-- Generate a highly readable, interactive report with actionable application links.
-- Avoid re-evaluating the same job across daily runs to optimize LLM usage and time.
+The scorer is resume-based, prompt-auditable, and cache-versioned.
 
----
+It now includes:
+- structured JSON scoring from the LLM
+- deterministic final score calculation in code
+- parse-failure retry with JSON repair
+- preferred-location handling from `config.json`
+- audit storage for:
+  - raw prompts
+  - raw model output
+  - structured analysis
 
-## Solution Overview
+The current report buckets are:
+- `New Findings`: new/reposted jobs with score `>= 70`
+- `Cached Findings`: cached jobs with score `>= 70`
+- `Borderline`: jobs with score `40-69`
+- `Waitlist`: jobs with score `< 40`
 
-The system acts as an orchestrated pipeline consisting of **Onboarding**, **Scraping**, **Filtering**, **LLM Scoring**, **Caching**, and **Reporting**.
+## Setup
 
-When initialized with a target company list and a candidate resume, it reads pre-onboarded API endpoints from `config.json`, pulls all active listings, filters out roles older than `recency_days` or outside of `location_preferences`, and passes the remaining high-quality candidates to an LLM.
-
-The LLM (configured as a senior technical recruiter) reads the job description alongside the resume, assigning a score from 0-100, extracting explicit strengths and gaps, and providing a final verdict. The output is a self-contained HTML report where every entry provides a direct external link to apply.
-
-### System Flowchart
-
-```mermaid
-flowchart TD
-    Onboard["onboard.py"] -->|Discovers & persists| Config
-    Config["`config.json`"] --> Orchestrator
-    Resume["`resume.pdf`"] --> Orchestrator
-
-    subgraph "Core Pipeline (main.py)"
-        Orchestrator(Orchestrator) --> Scraper{Workday Scraper}
-        Scraper -->|Pre-onboarded config| ExternalAPI[Company API Endpoint]
-        ExternalAPI -->|Fetch Postings| RawJobs[[Raw Postings]]
-        RawJobs --> Filter[Recency & Location Filter]
-        Filter -->|Matched| Cache[(SQLite Job Cache)]
-        Filter -.->|Discarded| Trash([Skipped Jobs])
-
-        Cache -->| Cached| BypassLLM[Reuse Previous Score]
-        Cache -->| New /  Repost| Analyzer{LLM Analyzer}
-
-        Analyzer -->|Persona + Context| OpenRouter((OpenRouter AI))
-        OpenRouter -->|Structured JSON| ScoreEval[[Score & Verdict]]
-        ScoreEval -.->|UPSERT| Cache
-
-        BypassLLM --> Reporter
-        ScoreEval --> Reporter{HTML Reporter}
-        Reporter --> Output[/Interactive Report/]
-    end
-
-    style Config fill:#e2e8f0,stroke:#64748b,color:#0f172a
-    style Resume fill:#e2e8f0,stroke:#64748b,color:#0f172a
-    style Onboard fill:#fef08a,stroke:#eab308,color:#854d0e
-    style Output fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a,stroke-width:2px
-    style OpenRouter fill:#fef08a,stroke:#eab308,color:#854d0e
-    style Cache fill:#d1fae5,stroke:#10b981,color:#065f46
-```
-
----
-
-## Architecture & Key Modules
-
-| Component | Responsibility | Technical Details |
-| --- | --- | --- |
-| **`onboard.py`** | Company Onboarding CLI | Discovers Workday career site API endpoints via 3-tier search (DuckDuckGo  HTML probe  brute-force). Validates by fetching 1 job, then persists the full config to `config.json`. |
-| **`main.py`** | Pipeline Orchestration | Reads pre-onboarded company configs, controls the loop over companies, manages the cache check, triggers LLM scoring, and dispatches the HTML reporter. |
-| **`config_loader.py`** | Environment & Settings | Loads `config.json` (model selection, target companies, filters) and parses the `.env` file for the `OPENROUTER_API_KEY`. |
-| **`resume_parser.py`** | Context Extraction | Uses `pypdf` to extract raw text content from the user's provided PDF resume. |
-| **`scrapers/workday.py`** | API Discovery & Extraction | Interacts with undocumented Workday JSON endpoints (`/wday/cxs/...`). Maps internal API paths to user-facing browsable career site URLs. |
-| **`analyzer.py`** | LLM Evaluation Engine | Formats a strict system prompt (recruiter persona) requiring fixed JSON output (`score`, `strengths`, `gaps`, `verdict`). Handles rate limits (429) and upstream server errors (500, 502, 503) with exponential backoff. |
-| **`job_cache.py`** | Cost & Time Optimization | SQLite wrapper over `data/job_history.db`. Generates a tiered stable key (`job_req_id`  URL  Content Hash) to uniquely identify jobs. Persists history and detects reposted jobs based on `posted_date`. |
-| **`reporter.py`** | Output Generation | Uses `Jinja2` to render a responsive, dark-themed HTML report with a pipeline funnel, score cards, summary table (with Apply links), and detailed job cards. |
-| **`query_db.py`** | Cache Inspector CLI | Lightweight tool to query and view the SQLite job history from the terminal without running the full pipeline. |
-
----
-
-## Implementation Flow
-
-1. **Onboarding (one-time per company):** Run `onboard.py` to discover and persist API endpoints into `config.json`.
-2. **Configuration Load:** `main.py` reads onboarded company configs, location preferences, and LLM model.
-3. **Resume Parsing:** Extracts text from the provided PDF.
-4. **Company Iteration Loop:**
-   - **Fetch & Filter:** Pulls paginated jobs from the Workday API. Discards jobs that violate location constraints or recency thresholds.
-5. **Cache & Score Loop (per Job):**
-   - Retrieves full description from Workday detail endpoint (along with metadata like `jobReqId`, `endDate`, `timeLeftToApply`).
-   - Checks `job_history.db`.
-     - *If Cached + Same Date:* Skips LLM, reuses score from DB ().
-     - *If Reposted (New Date):* Re-analyzes via LLM ().
-     - *If New:* Analyzes via LLM and saves to DB ().
-6. **Report Compilation:** Aggregates stats, scores, and job metadata into `output/report_<timestamp>.html`.
-
----
-
-## User Commands & Operations
-
-### 1. Setup & Prerequisites
-
-```bash
-# Create a virtual environment
+```powershell
 python -m venv venv
-venv\Scripts\activate  # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Add your OpenRouter API key
-echo "OPENROUTER_API_KEY=your_key_here" > .env
+.\venv\Scripts\activate
+python -m pip install -r requirements.txt
 ```
 
-### 2. Onboarding a Company (One-Time)
+Create `.env` with:
 
-Before running the pipeline, onboard each target company to discover its API endpoints:
+```text
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+TELEGRAM_CHAT_ID=your_telegram_chat_id_here
+```
 
-```bash
-# Discover and save a company's career site API
+## Onboarding Companies
+
+Use `onboard.py` to discover and save company ATS endpoints.
+
+```powershell
 python onboard.py --company "Mastercard"
-
-# Discover another company
-python onboard.py --company "Salesforce"
-
-# Re-discover endpoints if they change
-python onboard.py --company "Mastercard" --refresh
-
-# View all onboarded companies
+python onboard.py --company "Razorpay" --ats greenhouse --refresh
 python onboard.py --list
 ```
 
-This updates `config.json` with the full API config (base URL, career slug, etc.). You can also manually edit these fields if an endpoint changes.
+## Running Locally
 
-### 3. Running the Daily Pipeline
+Standard run:
 
-```bash
-# Standard run - analyzes new jobs, reuses cached scores
-python main.py --resume path/to/resume.pdf
-
-# Run only one onboarded company
-python main.py --resume path/to/resume.pdf --company "Razorpay"
-
-# Run a selected subset of onboarded companies
-python main.py --resume path/to/resume.pdf --company "Razorpay" --company "Visa"
-
-# Force re-evaluation - bypass cache, re-score everything via LLM
-python main.py --resume path/to/resume.pdf --force-rescore
+```powershell
+python main.py --resume resume.pdf
 ```
 
-**Typical daily performance:**
-| Scenario | LLM Calls | Time |
-|---|---|---|
-| First run (all new) | 8 calls | ~5 min |
-| Daily re-run (all cached) | 0 calls | ~10 sec |
-| 1 new posting found | 1 call | ~30 sec |
+Single company:
 
-### 4. Querying the Job Cache
-
-View your job history database directly from the terminal:
-
-```bash
-# Database statistics
-python query_db.py --stats
-
-# View 10 most recent jobs
-python query_db.py
-
-# Filter by company and minimum score
-python query_db.py --company Mastercard --min-score 70
-
-# Look up a specific job requisition ID
-python query_db.py --job-id R-268272
-
-# Show more results
-python query_db.py --recent 20
+```powershell
+python main.py --resume resume.pdf --company "Razorpay"
 ```
 
-### 5. GitHub Actions Automation
+Multiple companies:
 
-This repo now includes a scheduled workflow at `.github/workflows/job-hunter.yml`.
+```powershell
+python main.py --resume resume.pdf --company "Razorpay" --company "Visa"
+```
 
-It supports:
-- daily scheduled runs
-- manual ad hoc runs via `workflow_dispatch`
-- optional manual `force_rescore`
-- optional manual `company` input for a scoped run
-- Telegram summary delivery
-- Telegram HTML report attachment
-- state persistence between runs for `data/job_history.db` and `data/company_cache.json`
+Force re-score:
 
-#### Required GitHub repository secrets
+```powershell
+python main.py --resume resume.pdf --force-rescore
+```
+
+Show cached debug payload for one job:
+
+```powershell
+python main.py --show-job-debug 4667645005
+```
+
+## GitHub Actions Automation
+
+The repo includes `.github/workflows/job-hunter.yml` for:
+
+- daily schedule at 7:30 PM IST (2:00 PM UTC)
+
+- scheduled daily runs
+- manual `workflow_dispatch`
+- optional `company` input
+- optional `force_rescore`
+- Telegram summary and report delivery
+- persisted state across runs
+
+Required repository secrets:
 
 ```text
 OPENROUTER_API_KEY
@@ -197,90 +122,137 @@ TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 ```
 
-#### Automation behavior
+State persisted between runs:
+- `data/job_history.db`
+- `data/company_cache.json`
+- stable output files used by automation
 
-1. Restores the latest persisted state cache
-2. Installs Python dependencies
-3. Runs `python scripts/automation_runner.py --resume resume.pdf`
-4. Writes a stable summary to `output/last_run_summary.json`
-5. Writes a stable report copy to `output/latest_report.html`
-6. Sends a Telegram summary plus the report attachment
-7. Uploads refreshed state for the next run
+## Config Reference
 
-For manual workflow runs, you can optionally provide a company name from `config.json`
-to scope the run to one onboarded company.
+`config.json` now supports both run settings and candidate intent.
 
-#### Notes
-
-- `resume.pdf` is expected to remain in the private repository
-- `config.json` is repo-managed and used by both local runs and GitHub Actions
-- local CLI usage still works exactly the same with `python main.py --resume resume.pdf`
-- company-scoped local runs are available with `python main.py --resume resume.pdf --company "Razorpay"`
-
----
-
-## Configuration Reference (`config.json`)
+Example:
 
 ```json
 {
-  "model": "openrouter/hunter-alpha",
-  "recency_days": 30,
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
   "location_preferences": [
     "Remote",
     "India",
     "Bangalore",
     "Pune",
-    "Bengaluru"
+    "Bengaluru",
+    "Mysore"
   ],
-  "companies": [
-    {
-      "name": "Mastercard",
-      "ats": "workday",
-      "base_url": "https://mastercard.wd1.myworkdayjobs.com",
-      "company_slug": "mastercard",
-      "career_slug": "CorporateCareers",
-      "wd_number": "wd1",
-      "onboarded_at": "2026-03-15T15:27:46"
-    }
-  ]
+  "recency_days": 30,
+  "candidate_preferences": {
+    "target_roles": [
+      "Solution Architect",
+      "Delivery",
+      "Product Manager",
+      "Banking Solutions"
+    ],
+    "avoid_role_families": [
+      "Sales",
+      "Alliances",
+      "Account Management",
+      "HR"
+    ],
+    "seniority_preference": "manager_to_senior_manager",
+    "primary_domains": [
+      "Banking",
+      "Payments",
+      "Fintech",
+      "Core Banking"
+    ],
+    "notes_for_matcher": "Adjacent product and banking strategy roles are acceptable; customer-facing TAM and pure sales are lower priority."
+  },
+  "companies": []
 }
 ```
 
-| Field | Description |
-|---|---|
-| `model` | OpenRouter model identifier for LLM scoring |
-| `recency_days` | Only include jobs posted within the last N days |
-| `location_preferences` | Filter jobs by these location keywords (case-insensitive) |
-| `companies` | Array of onboarded company objects (populated by `onboard.py`) |
-| `companies[].base_url` | Workday instance URL  editable if the API changes |
-| `companies[].career_slug` | Career site path on Workday  editable if the API changes |
+Notes:
+- `location_preferences` are used both for pre-filtering and for location scoring guidance
+- `candidate_preferences` are currently used as prompt guidance only
+- `candidate_preferences` do not directly alter deterministic score math
 
----
+## Report Behavior
+
+The report includes:
+- first-page jump links
+- global filters
+- role links to analysis cards in the first three sections
+- external `Apply/Open` links
+- `Why Waitlist` summaries for low-score jobs
+- preferred-location note in the header
+
+Sections:
+1. `New Findings`
+2. `Cached Findings`
+3. `Borderline`
+4. `Waitlist`
+
+## Debugging and Inspection
+
+You can inspect one cached job in detail with:
+
+```powershell
+python main.py --show-job-debug <job_id>
+```
+
+This returns:
+- job metadata
+- prepared job description
+- structured analysis
+- raw prompts
+- raw model output
+- scoring version
 
 ## Project Structure
 
-```
+```text
 jobHunter_AG_o4.6/
- main.py                    # Pipeline orchestrator
- onboard.py                 # Company onboarding CLI
- query_db.py                # Job cache query CLI
- config.json                # User configuration (companies, model, filters)
- .env                       # API key (OPENROUTER_API_KEY)
- resume.pdf                 # Your resume
- requirements.txt           # Python dependencies
- src/
-    config_loader.py       # Config & env loader
-    resume_parser.py       # PDF resume text extractor
-    analyzer.py            # LLM scoring engine
-    reporter.py            # HTML report generator
-    job_cache.py           # SQLite job history cache
+  main.py
+  onboard.py
+  query_db.py
+  config.json
+  requirements.txt
+  scripts/
+    automation_runner.py
+  src/
+    analyzer.py
+    config_loader.py
+    job_cache.py
+    reporter.py
+    resume_parser.py
+    telegram_notifier.py
     scrapers/
-        base.py            # Base scraper interface
-        workday.py         # Workday ATS scraper
- templates/
-    report_template.html   # Jinja2 HTML report template
- data/
-    job_history.db         # SQLite cache (auto-created)
- output/
-     report_*.html          # Generated reports
+      base.py
+      greenhouse.py
+      smart_recruiters.py
+      workday.py
+  templates/
+    report_template.html
+  data/
+    job_history.db
+    company_cache.json
+  output/
+    report_*.html
 ```
+
+## Current Notes
+
+- scoring is still being calibrated against user judgment
+- candidate preferences are intentionally prompt-only for now
+- cached and fresh jobs now preserve the same structured analysis quality
+- parse-failure retry is enabled to recover malformed model JSON before accepting a failed score
+
+## Planned Next Phases
+
+- optional LLM QA review for non-cached jobs only, to flag possible false positives and false negatives
+- further score calibration against user-labeled jobs across role families
+- generic role-family logic improvements that stay resume-agnostic and company-agnostic
+- smarter distinction between mandatory requirements and strong preferences
+- optional use of candidate_preferences from config.json as prompt guidance to improve borderline decisions
+
+

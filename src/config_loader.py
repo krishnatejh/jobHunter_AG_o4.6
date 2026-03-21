@@ -46,6 +46,7 @@ def load_config(config_path: str | None = None) -> dict:
     # Defaults
     config.setdefault("location_preferences", [])
     config.setdefault("recency_days", 30)
+    config.setdefault("candidate_preferences", {})
 
     return config
 

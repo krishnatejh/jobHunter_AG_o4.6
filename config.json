@@ -9,6 +9,28 @@
     "Mysore"
   ],
   "recency_days": 30,
+  "candidate_preferences": {
+    "target_roles": [
+      "Solution Architect",
+      "Delivery",
+      "Product Manager",
+      "Banking Solutions"
+    ],
+    "avoid_role_families": [
+      "Sales",
+      "Alliances",
+      "Account Management",
+      "HR"
+    ],
+    "seniority_preference": "manager_to_senior_manager",
+    "primary_domains": [
+      "Banking",
+      "Payments",
+      "Fintech",
+      "Core Banking"
+    ],
+    "notes_for_matcher": "Adjacent product and banking strategy roles are acceptable; customer-facing TAM and pure sales are lower priority."
+  },
   "companies": [
     {
       "name": "Mastercard",

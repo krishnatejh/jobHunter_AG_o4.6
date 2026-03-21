@@ -7,7 +7,7 @@ import sys
 import time
 from pathlib import Path
 
-from src.analyzer import score_job
+from src.analyzer import SCORING_VERSION, score_job
 from src.config_loader import load_api_key, load_config
 from src.job_cache import JobCache
 from src.reporter import generate_report, prepare_results, summarize_results
@@ -41,7 +41,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Job Hunter Agent - Phase 1")
     parser.add_argument(
         "--resume",
-        required=True,
         help="Path to the candidate's resume (PDF)",
     )
     parser.add_argument(
@@ -66,6 +65,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional path to write the structured run summary as JSON.",
     )
+    parser.add_argument(
+        "--show-job-debug",
+        default=None,
+        help="Print the cached debug payload for a specific job id and exit.",
+    )
     return parser
 
 
@@ -84,6 +88,7 @@ def run_pipeline(
     companies = config["companies"]
     recency_days = config.get("recency_days", 30)
     location_prefs = config.get("location_preferences", [])
+    candidate_preferences = config.get("candidate_preferences", {})
     selected_companies = companies
 
     if company_filters:
@@ -115,6 +120,7 @@ def run_pipeline(
     logger.info(f"  Model:      {model}")
     logger.info(f"  Companies:  {selected_companies}")
     logger.info(f"  Locations:  {location_prefs}")
+    logger.info(f"  Candidate Preferences: {candidate_preferences}")
     logger.info(f"  Recency:    {recency_days} days")
 
     logger.info(f"Parsing resume: {resume_path}")
@@ -220,7 +226,12 @@ def run_pipeline(
         logger.info(f"  Key: {job_key}")
 
         if not force_rescore:
-            cached_analysis, status = cache.lookup(company, job_key, posted_date)
+            cached_analysis, status = cache.lookup(
+                company,
+                job_key,
+                posted_date,
+                scoring_version=SCORING_VERSION,
+            )
         else:
             cached_analysis, status = None, "new"
 
@@ -238,7 +249,14 @@ def run_pipeline(
             logger.info("  New job - analyzing...")
             job["cache_status"] = "new"
 
-        analysis = score_job(resume_text, job, model, api_key)
+        analysis = score_job(
+            resume_text,
+            job,
+            model,
+            api_key,
+            preferred_locations=location_prefs,
+            candidate_preferences=candidate_preferences,
+        )
         job["analysis"] = analysis
 
         if analysis["score"] > 0 or "Error" not in analysis.get("verdict", ""):
@@ -270,7 +288,13 @@ def run_pipeline(
     logger.info("=" * 60)
 
     prepare_results(all_jobs)
-    report_path = generate_report(all_jobs, resume_path, model, all_filter_stats)
+    report_path = generate_report(
+        all_jobs,
+        resume_path,
+        model,
+        all_filter_stats,
+        preferred_locations=location_prefs,
+    )
     logger.info(f"\nReport saved to: {report_path}")
 
     report_summary = summarize_results(all_jobs)
@@ -318,8 +342,26 @@ def print_summary(summary: dict) -> None:
     print("=" * 60 + "\n")
 
 
+def print_job_debug(job_debug: dict) -> None:
+    """Print a cached job debug payload for inspection."""
+    print(json.dumps(job_debug, indent=2, ensure_ascii=False))
+
+
 def main():
     args = build_arg_parser().parse_args()
+
+    if args.show_job_debug:
+        cache = JobCache()
+        job_debug = cache.get_job_debug(args.show_job_debug)
+        cache.close()
+        if not job_debug:
+            raise SystemExit(f"No cached job found for job id: {args.show_job_debug}")
+        print_job_debug(job_debug)
+        return
+
+    if not args.resume:
+        raise SystemExit("--resume is required unless --show-job-debug is used.")
+
     summary = run_pipeline(
         resume_path=args.resume,
         config_path=args.config,

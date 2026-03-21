@@ -37,6 +37,117 @@ def _score_label(score: int) -> str:
     return "Error"
 
 
+ROLE_FAMILY_LABELS = {
+    "strong": "",
+    "adjacent": "Adjacent role match",
+    "mismatch": "Role mismatch",
+}
+
+SENIORITY_LABELS = {
+    "matched": "",
+    "underleveled": "Underleveled",
+    "overleveled": "Overleveled",
+}
+
+LOCATION_LABELS = {
+    "matched": "",
+    "relocation_required": "Relocation needed",
+    "mismatch": "Location mismatch",
+    "unknown": "",
+}
+
+ROLE_FACT_LABELS = {
+    "strong": "Direct fit",
+    "adjacent": "Adjacent fit",
+    "mismatch": "Role mismatch",
+}
+
+SENIORITY_FACT_LABELS = {
+    "underleveled": "Underleveled",
+    "matched": "Matched",
+    "overleveled": "Overleveled",
+}
+
+LOCATION_FACT_LABELS = {
+    "matched": "Preferred location match",
+    "relocation_required": "Relocation needed",
+    "mismatch": "Outside preferred locations",
+    "unknown": "Location unclear",
+}
+
+
+def _compact_reason(text: str) -> str:
+    """Shorten a reason so it fits comfortably in table cells."""
+    if not text:
+        return ""
+    trimmed = " ".join(str(text).strip().split())
+    if len(trimmed) <= 60:
+        return trimmed
+    return trimmed[:57].rstrip(" ,;:.") + "..."
+
+
+def _waitlist_reason(job: dict) -> str:
+    """Create a crisp explanation for why a low-score job landed in Waitlist."""
+    analysis = job.get("analysis", {})
+    reasons = []
+
+    missing = analysis.get("hard_requirements_missing") or []
+    if missing:
+        reasons.append(_compact_reason(missing[0]))
+
+    role_reason = ROLE_FAMILY_LABELS.get(analysis.get("role_family_match", ""), "")
+    if role_reason:
+        reasons.append(role_reason)
+
+    seniority_reason = SENIORITY_LABELS.get(analysis.get("seniority_fit", ""), "")
+    if seniority_reason:
+        reasons.append(seniority_reason)
+
+    location_reason = LOCATION_LABELS.get(analysis.get("location_signal", ""), "")
+    if location_reason:
+        reasons.append(location_reason)
+
+    gaps = analysis.get("gaps") or []
+    for gap in gaps:
+        compact = _compact_reason(gap)
+        if compact and compact not in reasons:
+            reasons.append(compact)
+        if len(reasons) >= 3:
+            break
+
+    if not reasons:
+        return "Low overall fit"
+
+    return " | ".join(reasons[:3])
+
+
+def _analysis_facts(job: dict) -> list[str]:
+    """Create compact scoring facts for analysis cards."""
+    analysis = job.get("analysis", {})
+    facts = []
+
+    role = ROLE_FACT_LABELS.get(analysis.get("role_family_match", ""), "")
+    if role:
+        facts.append(f"Role: {role}")
+
+    seniority = SENIORITY_FACT_LABELS.get(analysis.get("seniority_fit", ""), "")
+    if seniority:
+        facts.append(f"Seniority: {seniority}")
+
+    location = LOCATION_FACT_LABELS.get(analysis.get("location_signal", ""), "")
+    if location:
+        if analysis.get("location_preference_applied"):
+            location = "Preferred location honored"
+        facts.append(f"Location: {location}")
+
+    for missing in (analysis.get("hard_requirements_missing") or [])[:2]:
+        compact = _compact_reason(missing)
+        if compact:
+            facts.append(f"Missing: {compact}")
+
+    return facts[:5]
+
+
 def prepare_results(results: list[dict]) -> list[dict]:
     """Sort results and attach display fields used by reports and automation."""
     results.sort(key=lambda j: j.get("analysis", {}).get("score", 0), reverse=True)
@@ -52,6 +163,8 @@ def prepare_results(results: list[dict]) -> list[dict]:
             "cached": "Cached",
             "reposted": "Reposted",
         }.get(job["cache_status"], "Unknown")
+        job["waitlist_reason"] = _waitlist_reason(job)
+        job["analysis_facts"] = _analysis_facts(job)
 
     return results
 
@@ -72,11 +185,11 @@ def bucket_results(results: list[dict]) -> dict[str, list[dict]]:
         ],
         "borderline_jobs": [
             job for job in results
-            if 50 <= job.get("analysis", {}).get("score", 0) < 70
+            if 40 <= job.get("analysis", {}).get("score", 0) < 70
         ],
         "waitlist_jobs": [
             job for job in results
-            if job.get("analysis", {}).get("score", 0) < 50
+            if job.get("analysis", {}).get("score", 0) < 40
         ],
     }
 
@@ -117,6 +230,7 @@ def generate_report(
     resume_path: str,
     model: str,
     filter_stats: dict | None = None,
+    preferred_locations: list[str] | None = None,
 ) -> str:
     """Generate an HTML report from scored job results.
 
@@ -181,6 +295,7 @@ def generate_report(
         borderline_jobs=buckets["borderline_jobs"],
         waitlist_jobs=buckets["waitlist_jobs"],
         filter_options=filter_options,
+        preferred_locations=preferred_locations or [],
     )
 
     # Write output
