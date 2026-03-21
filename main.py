@@ -55,6 +55,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Ignore cache and re-score all jobs via LLM",
     )
     parser.add_argument(
+        "--company",
+        action="append",
+        dest="company_filters",
+        default=None,
+        help="Only run for the specified company name. Repeat to target multiple companies.",
+    )
+    parser.add_argument(
         "--summary-json",
         default=None,
         help="Optional path to write the structured run summary as JSON.",
@@ -66,6 +73,7 @@ def run_pipeline(
     resume_path: str,
     config_path: str | None = None,
     force_rescore: bool = False,
+    company_filters: list[str] | None = None,
 ) -> dict:
     """Run the full pipeline and return a structured summary."""
     logger.info("Loading configuration...")
@@ -76,9 +84,36 @@ def run_pipeline(
     companies = config["companies"]
     recency_days = config.get("recency_days", 30)
     location_prefs = config.get("location_preferences", [])
+    selected_companies = companies
+
+    if company_filters:
+        normalized_filters = {name.strip().lower() for name in company_filters if name.strip()}
+
+        def company_name_for(entry: dict | str) -> str:
+            if isinstance(entry, dict):
+                return entry.get("name", "")
+            return entry
+
+        selected_companies = [
+            entry for entry in companies
+            if company_name_for(entry).strip().lower() in normalized_filters
+        ]
+
+        missing_companies = sorted(
+            normalized_filters
+            - {
+                company_name_for(entry).strip().lower()
+                for entry in selected_companies
+            }
+        )
+        if missing_companies:
+            raise ValueError(
+                "Requested company not found in config.json: "
+                + ", ".join(missing_companies)
+            )
 
     logger.info(f"  Model:      {model}")
-    logger.info(f"  Companies:  {companies}")
+    logger.info(f"  Companies:  {selected_companies}")
     logger.info(f"  Locations:  {location_prefs}")
     logger.info(f"  Recency:    {recency_days} days")
 
@@ -94,7 +129,7 @@ def run_pipeline(
         "matched": 0,
     }
 
-    for company_entry in companies:
+    for company_entry in selected_companies:
         if isinstance(company_entry, dict):
             company_name = company_entry.get("name", "Unknown")
             ats_type = company_entry.get("ats", "workday")
@@ -247,7 +282,7 @@ def run_pipeline(
         "resume_path": str(Path(resume_path).resolve()),
         "config_path": str(Path(config_path).resolve()) if config_path else "",
         "model": model,
-        "companies_scanned": len(companies),
+        "companies_scanned": len(selected_companies),
         "jobs_found": len(all_jobs),
         "scored_new": scored_new,
         "scored_cached": scored_cached,
@@ -261,6 +296,7 @@ def run_pipeline(
         "ratings": report_summary["ratings"],
         "top_matches": report_summary["top_matches"],
         "force_rescore": force_rescore,
+        "company_filters": company_filters or [],
     }
 
 
@@ -288,6 +324,7 @@ def main():
         resume_path=args.resume,
         config_path=args.config,
         force_rescore=args.force_rescore,
+        company_filters=args.company_filters,
     )
 
     if args.summary_json:

@@ -50,6 +50,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Ignore cache and re-score every job.",
     )
     parser.add_argument(
+        "--company",
+        action="append",
+        dest="company_filters",
+        default=None,
+        help="Only run for the specified company name. Repeat to target multiple companies.",
+    )
+    parser.add_argument(
         "--summary-json",
         default=str(DEFAULT_SUMMARY_PATH),
         help="Where to write the structured JSON summary.",
@@ -119,6 +126,7 @@ def main() -> int:
             resume_path=args.resume,
             config_path=args.config,
             force_rescore=args.force_rescore,
+            company_filters=args.company_filters,
         )
         summary["report_path"] = ensure_latest_report(summary["report_path"])
         summary["summary_path"] = str(Path(args.summary_json).resolve())

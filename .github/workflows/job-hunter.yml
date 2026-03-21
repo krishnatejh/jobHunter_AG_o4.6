@@ -10,9 +10,13 @@ on:
         required: false
         default: false
         type: boolean
+      company:
+        description: "Optional company name from config.json for a scoped manual run"
+        required: false
+        default: ""
+        type: string
 
 permissions:
-  actions: read
   contents: read
 
 jobs:
@@ -33,31 +37,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Restore prior state artifact
-        uses: dawidd6/action-download-artifact@v9
+      - name: Restore persisted state cache
+        id: restore-state
+        uses: actions/cache/restore@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: job-hunter.yml
-          name: jobhunter-state
-          path: .automation-state
-          if_no_artifact_found: warn
-
-      - name: Restore cached files into workspace
-        shell: bash
-        run: |
-          mkdir -p data output
-          if [ -f .automation-state/data/job_history.db ]; then
-            cp .automation-state/data/job_history.db data/job_history.db
-          fi
-          if [ -f .automation-state/data/company_cache.json ]; then
-            cp .automation-state/data/company_cache.json data/company_cache.json
-          fi
-          if [ -f .automation-state/output/latest_report.html ]; then
-            cp .automation-state/output/latest_report.html output/latest_report.html
-          fi
-          if [ -f .automation-state/output/last_run_summary.json ]; then
-            cp .automation-state/output/last_run_summary.json output/last_run_summary.json
-          fi
+          path: |
+            data/job_history.db
+            data/company_cache.json
+            output/latest_report.html
+            output/last_run_summary.json
+          key: jobhunter-state-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            jobhunter-state-${{ runner.os }}-
 
       - name: Install dependencies
         run: |
@@ -71,35 +62,22 @@ jobs:
           if [ "${{ github.event.inputs.force_rescore }}" = "true" ]; then
             FORCE_FLAG="--force-rescore"
           fi
-          python scripts/automation_runner.py --resume resume.pdf --summary-json output/last_run_summary.json $FORCE_FLAG
-
-      - name: Package latest state
-        if: always()
-        shell: bash
-        run: |
-          mkdir -p .automation-state/data .automation-state/output
-          if [ -f data/job_history.db ]; then
-            cp data/job_history.db .automation-state/data/job_history.db
-          fi
-          if [ -f data/company_cache.json ]; then
-            cp data/company_cache.json .automation-state/data/company_cache.json
-          fi
-          if [ -f output/latest_report.html ]; then
-            cp output/latest_report.html .automation-state/output/latest_report.html
-          fi
-          if [ -f output/last_run_summary.json ]; then
-            cp output/last_run_summary.json .automation-state/output/last_run_summary.json
+          if [ -n "${{ github.event.inputs.company }}" ]; then
+            python scripts/automation_runner.py --resume resume.pdf --summary-json output/last_run_summary.json $FORCE_FLAG --company "${{ github.event.inputs.company }}"
+          else
+            python scripts/automation_runner.py --resume resume.pdf --summary-json output/last_run_summary.json $FORCE_FLAG
           fi
 
-      - name: Upload persistent state artifact
+      - name: Save refreshed state cache
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/cache/save@v4
         with:
-          name: jobhunter-state
-          path: .automation-state
-          if-no-files-found: warn
-          retention-days: 30
-          overwrite: true
+          path: |
+            data/job_history.db
+            data/company_cache.json
+            output/latest_report.html
+            output/last_run_summary.json
+          key: jobhunter-state-${{ runner.os }}-${{ github.run_id }}
 
       - name: Upload current report artifact
         if: always()
