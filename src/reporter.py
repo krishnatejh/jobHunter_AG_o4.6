@@ -7,6 +7,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
+from src.analyzer import WEIGHTS
+
 logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
@@ -148,12 +150,39 @@ def _analysis_facts(job: dict) -> list[str]:
     return facts[:5]
 
 
+def _llm_base_score(analysis: dict) -> int:
+    """Reconstruct the base LLM-derived score before deterministic adjustments."""
+    components = analysis.get("component_scores", {}) or {}
+    weighted_total = 0.0
+    for key, weight in WEIGHTS.items():
+        try:
+            component = int(components.get(key, 0))
+        except (TypeError, ValueError):
+            component = 0
+        component = max(0, min(100, component))
+        weighted_total += weight * component
+    return max(0, min(100, round(weighted_total)))
+
+
+def _score_adjustment(analysis: dict) -> int:
+    """Difference between final score and the base LLM-derived score."""
+    return analysis.get("score", 0) - _llm_base_score(analysis)
+
+
+def _format_adjustment(value: int) -> str:
+    """Format a score adjustment with an explicit sign."""
+    if value > 0:
+        return f"+{value}"
+    return str(value)
+
+
 def prepare_results(results: list[dict]) -> list[dict]:
     """Sort results and attach display fields used by reports and automation."""
     results.sort(key=lambda j: j.get("analysis", {}).get("score", 0), reverse=True)
 
     for i, job in enumerate(results):
-        score = job.get("analysis", {}).get("score", 0)
+        analysis = job.get("analysis", {})
+        score = analysis.get("score", 0)
         job["score_class"] = _score_class(score)
         job["score_label"] = _score_label(score)
         job["anchor_id"] = f"job-{i}"
@@ -163,6 +192,11 @@ def prepare_results(results: list[dict]) -> list[dict]:
             "cached": "Cached",
             "reposted": "Reposted",
         }.get(job["cache_status"], "Unknown")
+        analysis["llm_base_score"] = _llm_base_score(analysis)
+        analysis["score_adjustment"] = _score_adjustment(analysis)
+        analysis["score_adjustment_label"] = _format_adjustment(
+            analysis["score_adjustment"]
+        )
         job["waitlist_reason"] = _waitlist_reason(job)
         job["analysis_facts"] = _analysis_facts(job)
 
