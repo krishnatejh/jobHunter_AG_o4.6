@@ -171,8 +171,8 @@ Important preference rule:
 
             choice = data.get("choices", [{}])[0]
             message = choice.get("message", {})
-            content = message.get("content", "")
-            reasoning = (
+            content = _extract_message_text(message.get("content"))
+            reasoning = _extract_message_text(
                 message.get("reasoning", "")
                 or message.get("reasoning_content", "")
             )
@@ -274,7 +274,7 @@ def _prepare_description(description: str) -> str:
 
 def _build_repair_prompt(previous_response: str) -> str:
     """Ask the model to re-emit the prior answer as valid JSON only."""
-    compact = previous_response.strip()
+    compact = _extract_message_text(previous_response).strip()
     if len(compact) > 6000:
         compact = compact[:6000]
     return REPAIR_PROMPT_TEMPLATE.format(previous_response=compact)
@@ -420,6 +420,25 @@ def _clamp_score(value: object) -> int:
     return max(0, min(100, score))
 
 
+def _extract_message_text(value: object) -> str:
+    """Normalize OpenRouter message content/reasoning into plain text."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        parts = []
+        for item in value:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text") or item.get("content") or ""
+                if text:
+                    parts.append(str(text))
+        return "\n".join(part for part in parts if part).strip()
+    return str(value)
+
+
 def _severe_blocker_penalty(missing_items: list[str]) -> int:
     """Apply extra penalty for hard misses that imply core functional mismatch."""
     severe_hits = 0
@@ -432,7 +451,24 @@ def _severe_blocker_penalty(missing_items: list[str]) -> int:
 
 def _parse_llm_response(content: str) -> dict:
     """Parse and normalize the structured JSON response from the LLM."""
-    cleaned = content.strip()
+    cleaned = _extract_message_text(content).strip()
+    if not cleaned:
+        logger.warning("  Failed to parse LLM response as structured JSON: empty content")
+        return {
+            "score": 0,
+            "component_scores": {},
+            "hard_requirements_met": [],
+            "hard_requirements_missing": ["Model returned empty content"],
+            "nice_to_have_matches": [],
+            "role_family_match": "mismatch",
+            "seniority_fit": "matched",
+            "location_signal": "unknown",
+            "location_preference_applied": False,
+            "parse_error": "Empty model response",
+            "strengths": [],
+            "gaps": ["Model returned empty content"],
+            "verdict": "Parse failure: model returned empty content.",
+        }
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
