@@ -98,7 +98,7 @@ class SmartRecruitersScraper(BaseScraper):
             for posting in postings:
                 total_scanned += 1
                 job, skip_reason = self._process_posting(
-                    posting, cutoff_date, location_prefs
+                    posting, company_config, cutoff_date, location_prefs
                 )
                 if job:
                     all_jobs.append(job)
@@ -132,6 +132,7 @@ class SmartRecruitersScraper(BaseScraper):
     def _process_posting(
         self,
         posting: dict,
+        company_config: dict,
         cutoff_date: datetime,
         location_prefs: list[str] | None,
     ) -> tuple[dict | None, str]:
@@ -193,5 +194,5 @@ class SmartRecruitersScraper(BaseScraper):
             "location": locations_text,
             "posted_date": released_date_str[:10] if released_date_str else "",
             "description": full_text,
-            "company": slug
+            "company": company_config.get("company_name", slug),
         }, ""

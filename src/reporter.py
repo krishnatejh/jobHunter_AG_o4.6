@@ -77,6 +77,13 @@ LOCATION_FACT_LABELS = {
     "unknown": "Location unclear",
 }
 
+SCREEN_LABELS = {
+    "pass": "Pass",
+    "borderline": "Review",
+    "review": "Review",
+    "reject": "Reject",
+}
+
 
 def _compact_reason(text: str) -> str:
     """Shorten a reason so it fits comfortably in table cells."""
@@ -176,6 +183,16 @@ def _format_adjustment(value: int) -> str:
     return str(value)
 
 
+def _screen_display(job: dict) -> tuple[str, str]:
+    """Return a compact screen-stage label and CSS class."""
+    screen = job.get("analysis", {}).get("screen_result", {}) or {}
+    decision = str(screen.get("decision", "")).strip().lower()
+    if decision not in SCREEN_LABELS:
+        return "N/A", "screen-na"
+    css_key = "review" if decision == "borderline" else decision
+    return SCREEN_LABELS[decision], f"screen-{css_key}"
+
+
 def prepare_results(results: list[dict]) -> list[dict]:
     """Sort results and attach display fields used by reports and automation."""
     results.sort(key=lambda j: j.get("analysis", {}).get("score", 0), reverse=True)
@@ -191,6 +208,7 @@ def prepare_results(results: list[dict]) -> list[dict]:
             "new": "New",
             "cached": "Cached",
             "reposted": "Reposted",
+            "filtered": "Filtered",
         }.get(job["cache_status"], "Unknown")
         analysis["llm_base_score"] = _llm_base_score(analysis)
         analysis["score_adjustment"] = _score_adjustment(analysis)
@@ -199,6 +217,7 @@ def prepare_results(results: list[dict]) -> list[dict]:
         )
         job["waitlist_reason"] = _waitlist_reason(job)
         job["analysis_facts"] = _analysis_facts(job)
+        job["screen_label"], job["screen_class"] = _screen_display(job)
 
     return results
 
@@ -219,11 +238,11 @@ def bucket_results(results: list[dict]) -> dict[str, list[dict]]:
         ],
         "borderline_jobs": [
             job for job in results
-            if 40 <= job.get("analysis", {}).get("score", 0) < 70
+            if 50 <= job.get("analysis", {}).get("score", 0) < 70
         ],
         "waitlist_jobs": [
             job for job in results
-            if job.get("analysis", {}).get("score", 0) < 40
+            if job.get("analysis", {}).get("score", 0) < 50
         ],
     }
 
@@ -261,7 +280,7 @@ def summarize_results(results: list[dict]) -> dict:
 
 def generate_report(
     results: list[dict],
-    resume_path: str,
+    resume_name: str,
     model: str,
     filter_stats: dict | None = None,
     preferred_locations: list[str] | None = None,
@@ -270,7 +289,7 @@ def generate_report(
 
     Args:
         results: List of job dicts, each containing an 'analysis' sub-dict.
-        resume_path: Path to the candidate's resume (for display).
+        resume_name: Resume/profile label used for display.
         model: LLM model used for scoring.
         filter_stats: Dict with total_scanned, skipped_recency, skipped_location, matched.
 
@@ -278,8 +297,6 @@ def generate_report(
         Path to the generated HTML file.
     """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    prepare_results(results)
 
     # Group by company
     companies = defaultdict(list)
@@ -315,7 +332,7 @@ def generate_report(
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     html = template.render(
         generated_at=timestamp,
-        resume_name=Path(resume_path).name,
+        resume_name=resume_name,
         model=model,
         total_jobs=total,
         excellent_count=excellent,
@@ -339,5 +356,17 @@ def generate_report(
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
 
+    _cleanup_old_reports()
     logger.info(f"Report generated: {output_path}")
     return str(output_path)
+
+
+def _cleanup_old_reports(keep: int = 10) -> None:
+    """Delete old report files, keeping only the most recent `keep` reports."""
+    reports = sorted(OUTPUT_DIR.glob("report_*.html"), key=lambda p: p.stat().st_mtime)
+    for old in reports[:-keep]:
+        try:
+            old.unlink()
+            logger.info(f"Cleaned up old report: {old.name}")
+        except OSError:
+            pass

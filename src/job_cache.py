@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,20 @@ _COLUMN_DEFAULTS = {
     "raw_user_prompt": "TEXT DEFAULT ''",
     "raw_llm_content": "TEXT DEFAULT ''",
     "raw_llm_reasoning": "TEXT DEFAULT ''",
+    "raw_llm_response_json": "TEXT DEFAULT ''",
+    "screen_result": "TEXT DEFAULT '{}'",
+    "screen_system_prompt": "TEXT DEFAULT ''",
+    "screen_user_prompt": "TEXT DEFAULT ''",
+    "screen_raw_output": "TEXT DEFAULT ''",
+    "screen_raw_response_json": "TEXT DEFAULT ''",
+    "screen_model_used": "TEXT DEFAULT ''",
+    "screen_attempts": "TEXT DEFAULT '[]'",
+    "qa_result": "TEXT DEFAULT '{}'",
+    "qa_system_prompt": "TEXT DEFAULT ''",
+    "qa_user_prompt": "TEXT DEFAULT ''",
+    "qa_raw_output": "TEXT DEFAULT ''",
+    "qa_raw_response_json": "TEXT DEFAULT ''",
+    "qa_model_used": "TEXT DEFAULT ''",
 }
 
 
@@ -145,6 +159,20 @@ class JobCache:
             "raw_user_prompt": row["raw_user_prompt"] or "",
             "raw_llm_content": row["raw_llm_content"] or "",
             "raw_llm_reasoning": row["raw_llm_reasoning"] or "",
+            "raw_llm_response_json": row["raw_llm_response_json"] or "",
+            "screen_result": _json_loads(row["screen_result"], {}),
+            "screen_system_prompt": row["screen_system_prompt"] or "",
+            "screen_user_prompt": row["screen_user_prompt"] or "",
+            "screen_raw_output": row["screen_raw_output"] or "",
+            "screen_raw_response_json": row["screen_raw_response_json"] or "",
+            "screen_model_used": row["screen_model_used"] or "",
+            "screen_attempts": _json_loads(row["screen_attempts"], []),
+            "qa_result": _json_loads(row["qa_result"], {}),
+            "qa_system_prompt": row["qa_system_prompt"] or "",
+            "qa_user_prompt": row["qa_user_prompt"] or "",
+            "qa_raw_output": row["qa_raw_output"] or "",
+            "qa_raw_response_json": row["qa_raw_response_json"] or "",
+            "qa_model_used": row["qa_model_used"] or "",
             "prepared_job_description": row["prepared_job_description"] or "",
             "model_used": row["model_used"],
             "scoring_version": row["scoring_version"] or "",
@@ -164,6 +192,12 @@ class JobCache:
                 "raw_system_prompt",
                 "raw_user_prompt",
                 "raw_llm_content",
+                "screen_result",
+                "screen_system_prompt",
+                "screen_user_prompt",
+                "screen_raw_output",
+                "screen_raw_response_json",
+                "screen_model_used",
             )
         )
 
@@ -185,15 +219,26 @@ class JobCache:
 
         cached_date = row["posted_date"] or ""
         current_date = posted_date or ""
-        if cached_date and current_date and cached_date != current_date:
-            logger.info(f"    Reposted: {cached_date} -> {current_date}")
-            return None, "reposted"
+        if cached_date and current_date:
+            try:
+                d1 = datetime.fromisoformat(cached_date)
+                d2 = datetime.fromisoformat(current_date)
+                if abs((d2 - d1).days) > 3:
+                    logger.info(f"    Reposted: {cached_date} -> {current_date}")
+                    return None, "reposted"
+            except ValueError:
+                # Unparseable dates — fall back to exact match
+                if cached_date != current_date:
+                    logger.info(f"    Reposted: {cached_date} -> {current_date}")
+                    return None, "reposted"
 
         cached_version = row["scoring_version"] or ""
-        if scoring_version and cached_version != scoring_version:
+        # Strip any legacy preferences hash suffix (e.g. "v8+0880dd08" -> "v8")
+        base_cached_version = cached_version.split("+")[0] if "+" in cached_version else cached_version
+        if scoring_version and base_cached_version != scoring_version:
             logger.info(
                 "    Re-scoring due to scoring version change: "
-                f"{cached_version or 'unset'} -> {scoring_version}"
+                f"{base_cached_version or 'unset'} -> {scoring_version}"
             )
             return None, "reposted"
 
@@ -224,8 +269,11 @@ class JobCache:
                  role_family_match, seniority_fit, location_signal,
                  location_preference_applied, parse_error, strengths, gaps, verdict,
                  thinking, raw_system_prompt, raw_user_prompt, raw_llm_content,
-                 raw_llm_reasoning, model_used, scoring_version, first_seen, analyzed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 raw_llm_reasoning, raw_llm_response_json, screen_result, screen_system_prompt, screen_user_prompt,
+                 screen_raw_output, screen_raw_response_json, screen_model_used, screen_attempts, qa_result, qa_system_prompt,
+                 qa_user_prompt, qa_raw_output, qa_raw_response_json, qa_model_used, model_used,
+                 scoring_version, first_seen, analyzed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(company, job_key) DO UPDATE SET
                 title = excluded.title,
                 location = excluded.location,
@@ -254,6 +302,20 @@ class JobCache:
                 raw_user_prompt = excluded.raw_user_prompt,
                 raw_llm_content = excluded.raw_llm_content,
                 raw_llm_reasoning = excluded.raw_llm_reasoning,
+                raw_llm_response_json = excluded.raw_llm_response_json,
+                screen_result = excluded.screen_result,
+                screen_system_prompt = excluded.screen_system_prompt,
+                screen_user_prompt = excluded.screen_user_prompt,
+                screen_raw_output = excluded.screen_raw_output,
+                screen_raw_response_json = excluded.screen_raw_response_json,
+                screen_model_used = excluded.screen_model_used,
+                screen_attempts = excluded.screen_attempts,
+                qa_result = excluded.qa_result,
+                qa_system_prompt = excluded.qa_system_prompt,
+                qa_user_prompt = excluded.qa_user_prompt,
+                qa_raw_output = excluded.qa_raw_output,
+                qa_raw_response_json = excluded.qa_raw_response_json,
+                qa_model_used = excluded.qa_model_used,
                 model_used = excluded.model_used,
                 scoring_version = excluded.scoring_version,
                 analyzed_at = excluded.analyzed_at
@@ -289,6 +351,20 @@ class JobCache:
                 analysis.get("raw_user_prompt", ""),
                 analysis.get("raw_llm_content", ""),
                 analysis.get("raw_llm_reasoning", ""),
+                analysis.get("raw_llm_response_json", ""),
+                json.dumps(analysis.get("screen_result", {}), ensure_ascii=False),
+                analysis.get("screen_system_prompt", ""),
+                analysis.get("screen_user_prompt", ""),
+                analysis.get("screen_raw_output", ""),
+                analysis.get("screen_raw_response_json", ""),
+                analysis.get("screen_model_used", ""),
+                json.dumps(analysis.get("screen_attempts", []), ensure_ascii=False),
+                json.dumps(analysis.get("qa_result", {}), ensure_ascii=False),
+                analysis.get("qa_system_prompt", ""),
+                analysis.get("qa_user_prompt", ""),
+                analysis.get("qa_raw_output", ""),
+                analysis.get("qa_raw_response_json", ""),
+                analysis.get("qa_model_used", ""),
                 analysis.get("model_used", ""),
                 analysis.get("scoring_version", ""),
                 first_seen,
@@ -332,6 +408,32 @@ class JobCache:
             "raw_model_output": {
                 "content": row["raw_llm_content"] or "",
                 "reasoning": row["raw_llm_reasoning"] or "",
+                "response_json": row["raw_llm_response_json"] or "",
+            },
+            "screening": {
+                "result": _json_loads(row["screen_result"], {}),
+                "raw_prompts": {
+                    "system": row["screen_system_prompt"] or "",
+                    "user": row["screen_user_prompt"] or "",
+                },
+                "raw_model_output": {
+                    "content": row["screen_raw_output"] or "",
+                    "response_json": row["screen_raw_response_json"] or "",
+                },
+                "model_used": row["screen_model_used"] or "",
+                "attempts": _json_loads(row["screen_attempts"], []),
+            },
+            "qa_review": {
+                "result": _json_loads(row["qa_result"], {}),
+                "raw_prompts": {
+                    "system": row["qa_system_prompt"] or "",
+                    "user": row["qa_user_prompt"] or "",
+                },
+                "raw_model_output": {
+                    "content": row["qa_raw_output"] or "",
+                    "response_json": row["qa_raw_response_json"] or "",
+                },
+                "model_used": row["qa_model_used"] or "",
             },
         }
 

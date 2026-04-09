@@ -465,6 +465,24 @@ class WorkdayScraper(BaseScraper):
         # --- Fetch full job details (description + metadata) ---
         details = self._fetch_job_details(external_path, company_config)
 
+        # Resolve posted_date to a stable YYYY-MM-DD string.
+        # The detail API's start_date is already stable; fall back to resolving
+        # the relative listing string (e.g. "Posted 3 Days Ago") so the cache
+        # doesn't see a different date on every run and force a re-score.
+        stable_date = details.get("start_date", "")
+        if not stable_date and posted_on:
+            po_lower = posted_on.lower()
+            if "today" in po_lower:
+                stable_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            elif "yesterday" in po_lower:
+                stable_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+            elif "days ago" in po_lower:
+                match = re.search(r'(\d+)', po_lower)
+                if match:
+                    stable_date = (
+                        datetime.now(timezone.utc) - timedelta(days=int(match.group(1)))
+                    ).strftime("%Y-%m-%d")
+
         # Build browsable career site URL (includes career slug)
         career_slug = company_config["career_slug"]
         job_url = f"{company_config['base_url']}/en-US/{career_slug}{external_path}"
@@ -473,7 +491,7 @@ class WorkdayScraper(BaseScraper):
             "title": title,
             "url": job_url,
             "location": locations_text,
-            "posted_date": details.get("start_date", posted_on),
+            "posted_date": stable_date,
             "end_date": details.get("end_date", ""),
             "time_left": details.get("time_left", ""),
             "job_req_id": details.get("job_req_id", ""),

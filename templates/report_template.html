@@ -121,6 +121,18 @@
             padding: 18px;
         }
 
+        a.summary-card {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        a.summary-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 46px rgba(47, 43, 34, 0.1);
+        }
+
         .summary-card .label {
             font-size: 0.8rem;
             text-transform: uppercase;
@@ -343,6 +355,37 @@
             border-color: rgba(146, 64, 14, 0.2);
         }
 
+        .status-pill.filtered {
+            background: rgba(185, 28, 28, 0.1);
+            color: var(--weak);
+            border-color: rgba(185, 28, 28, 0.18);
+        }
+
+        .status-pill.screen-pass {
+            background: rgba(21, 128, 61, 0.1);
+            color: var(--excellent);
+            border-color: rgba(21, 128, 61, 0.18);
+        }
+
+        .status-pill.screen-review,
+        .status-pill.screen-borderline {
+            background: rgba(180, 83, 9, 0.1);
+            color: var(--warn);
+            border-color: rgba(180, 83, 9, 0.18);
+        }
+
+        .status-pill.screen-reject {
+            background: rgba(185, 28, 28, 0.1);
+            color: var(--weak);
+            border-color: rgba(185, 28, 28, 0.18);
+        }
+
+        .status-pill.screen-na {
+            background: rgba(106, 111, 125, 0.11);
+            color: #515766;
+            border-color: rgba(106, 111, 125, 0.2);
+        }
+
         .ghost-link {
             color: var(--accent);
             text-decoration: none;
@@ -496,22 +539,22 @@
             {% endif %}
 
             <div class="summary-grid">
-                <div class="summary-card">
+                <a class="summary-card" href="#new-findings">
                     <div class="label">New Strong Findings</div>
                     <div class="value excellent">{{ new_findings | length }}</div>
-                </div>
-                <div class="summary-card">
+                </a>
+                <a class="summary-card" href="#cached-findings">
                     <div class="label">Cached Strong Findings</div>
                     <div class="value good">{{ cached_findings | length }}</div>
-                </div>
-                <div class="summary-card">
+                </a>
+                <a class="summary-card" href="#borderline-findings">
                     <div class="label">Borderline</div>
                     <div class="value pending">{{ borderline_jobs | length }}</div>
-                </div>
-                <div class="summary-card">
+                </a>
+                <a class="summary-card" href="#waitlist-findings">
                     <div class="label">Waitlist</div>
                     <div class="value pending">{{ waitlist_jobs | length }}</div>
-                </div>
+                </a>
                 <div class="summary-card">
                     <div class="label">Scored Jobs</div>
                     <div class="value total">{{ total_jobs }}</div>
@@ -635,6 +678,7 @@
                             <th>Score</th>
                             <th>LLM</th>
                             <th>Adj</th>
+                            <th>Screen</th>
                             <th>Rating</th>
                             <th>Status</th>
                             <th>Posted</th>
@@ -662,6 +706,7 @@
                             <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
                             <td>{{ job.analysis.llm_base_score }}</td>
                             <td><span class="adjustment-pill {% if job.analysis.score_adjustment > 0 %}positive{% elif job.analysis.score_adjustment < 0 %}negative{% else %}neutral{% endif %}">{{ job.analysis.score_adjustment_label }}</span></td>
+                            <td><span class="status-pill {{ job.screen_class }}">{{ job.screen_label }}</span></td>
                             <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
                             <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>
                             <td>{{ job.posted_date or '-' }}</td>
@@ -700,6 +745,7 @@
                     <div class="fact-row">
                         <span class="fact-chip">LLM Base: {{ job.analysis.llm_base_score }}</span>
                         <span class="fact-chip">Adjustment: {{ job.analysis.score_adjustment_label }}</span>
+                        <span class="fact-chip">Screen: {{ job.screen_label }}</span>
                         <span class="fact-chip">Final: {{ job.analysis.score }}</span>
                     </div>
 
@@ -753,6 +799,7 @@
                             <th>Score</th>
                             <th>LLM</th>
                             <th>Adj</th>
+                            <th>Screen</th>
                             <th>Rating</th>
                             <th>Status</th>
                             <th>Posted</th>
@@ -780,6 +827,7 @@
                             <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
                             <td>{{ job.analysis.llm_base_score }}</td>
                             <td><span class="adjustment-pill {% if job.analysis.score_adjustment > 0 %}positive{% elif job.analysis.score_adjustment < 0 %}negative{% else %}neutral{% endif %}">{{ job.analysis.score_adjustment_label }}</span></td>
+                            <td><span class="status-pill {{ job.screen_class }}">{{ job.screen_label }}</span></td>
                             <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
                             <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>
                             <td>{{ job.posted_date or '-' }}</td>
@@ -818,6 +866,7 @@
                     <div class="fact-row">
                         <span class="fact-chip">LLM Base: {{ job.analysis.llm_base_score }}</span>
                         <span class="fact-chip">Adjustment: {{ job.analysis.score_adjustment_label }}</span>
+                        <span class="fact-chip">Screen: {{ job.screen_label }}</span>
                         <span class="fact-chip">Final: {{ job.analysis.score }}</span>
                     </div>
 
@@ -855,9 +904,9 @@
             <div class="panel-header">
                 <div>
                     <h2>3. Borderline</h2>
-                    <p>Scores from 40 to 69, shown with the LLM base score and deterministic adjustment so near-matches are easier to review.</p>
+                    <p>Scores from 50 to 69, shown with the LLM base score and deterministic adjustment so near-matches are easier to review.</p>
                 </div>
-                <span class="badge">Scores 40-69</span>
+                <span class="badge">Scores 50-69</span>
             </div>
 
             <div class="table-wrap">
@@ -871,6 +920,7 @@
                             <th>Score</th>
                             <th>LLM</th>
                             <th>Adj</th>
+                            <th>Screen</th>
                             <th>Rating</th>
                             <th>Status</th>
                             <th>Posted</th>
@@ -898,6 +948,7 @@
                             <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
                             <td>{{ job.analysis.llm_base_score }}</td>
                             <td><span class="adjustment-pill {% if job.analysis.score_adjustment > 0 %}positive{% elif job.analysis.score_adjustment < 0 %}negative{% else %}neutral{% endif %}">{{ job.analysis.score_adjustment_label }}</span></td>
+                            <td><span class="status-pill {{ job.screen_class }}">{{ job.screen_label }}</span></td>
                             <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
                             <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>
                             <td>{{ job.posted_date or '-' }}</td>
@@ -936,6 +987,7 @@
                     <div class="fact-row">
                         <span class="fact-chip">LLM Base: {{ job.analysis.llm_base_score }}</span>
                         <span class="fact-chip">Adjustment: {{ job.analysis.score_adjustment_label }}</span>
+                        <span class="fact-chip">Screen: {{ job.screen_label }}</span>
                         <span class="fact-chip">Final: {{ job.analysis.score }}</span>
                     </div>
 
@@ -973,9 +1025,9 @@
             <div class="panel-header">
                 <div>
                     <h2>4. Waitlist</h2>
-                    <p>Jobs below 40, kept as a compact table with the LLM base score, deterministic adjustment, and a short blocker summary.</p>
+                    <p>Jobs below 50, kept as a compact table with the LLM base score, deterministic adjustment, and a short blocker summary.</p>
                 </div>
-                <span class="badge">Scores below 40</span>
+                <span class="badge">Scores below 50</span>
             </div>
 
             <div class="table-wrap">
@@ -989,6 +1041,7 @@
                             <th>Score</th>
                             <th>LLM</th>
                             <th>Adj</th>
+                            <th>Screen</th>
                             <th>Rating</th>
                             <th>Why Waitlist</th>
                             <th>Status</th>
@@ -1016,6 +1069,7 @@
                             <td><span class="score-pill {{ job.score_class.replace('score-', '') }}">{{ job.analysis.score }}</span></td>
                             <td>{{ job.analysis.llm_base_score }}</td>
                             <td><span class="adjustment-pill {% if job.analysis.score_adjustment > 0 %}positive{% elif job.analysis.score_adjustment < 0 %}negative{% else %}neutral{% endif %}">{{ job.analysis.score_adjustment_label }}</span></td>
+                            <td><span class="status-pill {{ job.screen_class }}">{{ job.screen_label }}</span></td>
                             <td><span class="rating-pill {{ job.score_class.replace('score-', '') }}">{{ job.score_label }}</span></td>
                             <td class="reason-cell" title="{{ job.waitlist_reason }}">{{ job.waitlist_reason }}</td>
                             <td><span class="status-pill {{ job.cache_status }}">{{ job.status_label }}</span></td>

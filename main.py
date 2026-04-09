@@ -3,18 +3,36 @@
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from pathlib import Path
 
 from src.analyzer import SCORING_VERSION, score_job
+from src.candidate_profile import (
+    build_or_load_candidate_profile,
+    candidate_preferences_from_profile,
+    load_candidate_profile,
+)
 from src.config_loader import load_api_key, load_config
 from src.job_cache import JobCache
 from src.reporter import generate_report, prepare_results, summarize_results
 from src.resume_parser import parse_resume
+from src.screener import (
+    SCREEN_SYSTEM_PROMPT,
+    build_screen_reject_analysis,
+    screen_job,
+    should_bypass_premium_score,
+)
+from src.title_filter import make_skip_analysis, should_skip_job
 from src.scrapers.greenhouse import GreenhouseScraper
 from src.scrapers.smart_recruiters import SmartRecruitersScraper
 from src.scrapers.workday import WorkdayScraper
+from src.telegram_notifier import (
+    format_summary_message,
+    send_document,
+    send_message,
+)
 
 SCRAPERS = {
     "workday": WorkdayScraper,
@@ -41,7 +59,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Job Hunter Agent - Phase 1")
     parser.add_argument(
         "--resume",
-        help="Path to the candidate's resume (PDF)",
+        help="Path to the candidate's resume (PDF). Required only when refreshing or creating the candidate profile.",
     )
     parser.add_argument(
         "--config",
@@ -70,25 +88,38 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Print the cached debug payload for a specific job id and exit.",
     )
+    parser.add_argument(
+        "--refresh-candidate-profile",
+        action="store_true",
+        help="Regenerate the sanitized candidate profile from the resume before running.",
+    )
+    parser.add_argument(
+        "--skip-telegram",
+        action="store_true",
+        help="Run locally without Telegram notification even if Telegram secrets are present.",
+    )
     return parser
 
 
 def run_pipeline(
-    resume_path: str,
+    resume_path: str | None,
     config_path: str | None = None,
     force_rescore: bool = False,
     company_filters: list[str] | None = None,
+    refresh_candidate_profile: bool = False,
 ) -> dict:
     """Run the full pipeline and return a structured summary."""
     logger.info("Loading configuration...")
     config = load_config(config_path)
-    api_key = load_api_key()
+    premium_api_key = load_api_key("premium")
+    fast_api_key = load_api_key("fast")
 
-    model = config["model"]
+    model = config["premium_model"]
+    fast_model = config["fast_model"]
     companies = config["companies"]
     recency_days = config.get("recency_days", 30)
-    location_prefs = config.get("location_preferences", [])
-    candidate_preferences = config.get("candidate_preferences", {})
+    legacy_candidate_preferences = {}
+    candidate_profile_path = config.get("candidate_profile_path")
     selected_companies = companies
 
     if company_filters:
@@ -117,15 +148,64 @@ def run_pipeline(
                 + ", ".join(missing_companies)
             )
 
-    logger.info(f"  Model:      {model}")
+    logger.info(f"  Premium model: {model}")
+    logger.info(f"  Fast model:    {fast_model}")
     logger.info(f"  Companies:  {selected_companies}")
-    logger.info(f"  Locations:  {location_prefs}")
-    logger.info(f"  Candidate Preferences: {candidate_preferences}")
     logger.info(f"  Recency:    {recency_days} days")
 
-    logger.info(f"Parsing resume: {resume_path}")
-    resume_text = parse_resume(resume_path)
-    logger.info(f"  Extracted {len(resume_text)} characters from resume")
+    profile_path_obj = Path(candidate_profile_path) if candidate_profile_path else None
+    existing_profile = (
+        load_candidate_profile(profile_path_obj)
+        if profile_path_obj and profile_path_obj.exists()
+        else None
+    )
+
+    if refresh_candidate_profile or not existing_profile:
+        if not resume_path:
+            raise ValueError(
+                "--resume is required when refreshing the candidate profile or when no candidate profile exists."
+            )
+        logger.info(f"Parsing resume: {resume_path}")
+        resume_text = parse_resume(resume_path)
+        logger.info(f"  Extracted {len(resume_text)} characters from resume")
+        seed_profile = existing_profile or {}
+        seed_candidate_preferences = (
+            candidate_preferences_from_profile(seed_profile)
+            if seed_profile
+            else legacy_candidate_preferences
+        )
+        seed_locations = seed_profile.get("preferred_locations", []) or []
+        candidate_profile = build_or_load_candidate_profile(
+            resume_text,
+            seed_candidate_preferences,
+            seed_locations,
+            resume_path,
+            profile_path=candidate_profile_path,
+            force_refresh=refresh_candidate_profile,
+        )
+    else:
+        candidate_profile = existing_profile
+
+    runtime_resume_text = (
+        resume_text
+        if "resume_text" in locals()
+        else candidate_profile.get("resume_excerpt_redacted", "")
+    )
+    resume_display_name = (
+        Path(resume_path).name
+        if resume_path
+        else candidate_profile.get("source_resume_file", "candidate profile")
+    )
+
+    runtime_candidate_preferences = candidate_preferences_from_profile(candidate_profile)
+    runtime_location_prefs = candidate_profile.get("preferred_locations", []) or []
+    logger.info(
+        "  Candidate profile: %s | summary: %s | target roles: %s | preferred locations: %s",
+        candidate_profile_path,
+        candidate_profile.get("candidate_summary_short", ""),
+        ", ".join(runtime_candidate_preferences.get("target_roles", [])[:4]) or "Not provided",
+        ", ".join(runtime_location_prefs[:4]) or "Not provided",
+    )
 
     all_jobs = []
     all_filter_stats = {
@@ -178,7 +258,7 @@ def run_pipeline(
             jobs, stats = scraper.fetch_jobs(
                 company_config,
                 recency_days=recency_days,
-                location_prefs=location_prefs if location_prefs else None,
+                location_prefs=runtime_location_prefs if runtime_location_prefs else None,
             )
 
             for key in all_filter_stats:
@@ -216,6 +296,7 @@ def run_pipeline(
     scored_cached = 0
     scored_reposted = 0
     scored_fail = 0
+    scored_filtered = 0
 
     for i, job in enumerate(all_jobs, 1):
         job_key = JobCache.make_job_key(job)
@@ -223,44 +304,93 @@ def run_pipeline(
         posted_date = job.get("posted_date", "")
 
         logger.info(f"\n[{i}/{len(all_jobs)}] {job['title']} @ {company}")
+
+        # Title pre-filter — skip obviously irrelevant roles before LLM call
+        skip, skip_reason = should_skip_job(job.get("title", ""), runtime_candidate_preferences)
+        if skip:
+            logger.info(f"  Skipped (title filter: {skip_reason})")
+            job["analysis"] = make_skip_analysis(skip_reason)
+            job["cache_status"] = "filtered"
+            scored_filtered += 1
+            continue
         logger.info(f"  Key: {job_key}")
 
         if not force_rescore:
-            cached_analysis, status = cache.lookup(
-                company,
-                job_key,
-                posted_date,
+            cached_analysis, cache_status = cache.lookup(
+                company=company,
+                job_key=job_key,
+                posted_date=posted_date,
                 scoring_version=SCORING_VERSION,
             )
         else:
-            cached_analysis, status = None, "new"
+            cached_analysis, cache_status = None, "new"
 
-        if status == "cached" and cached_analysis:
+        if cache_status == "cached" and cached_analysis:
             job["analysis"] = cached_analysis
             job["cache_status"] = "cached"
             scored_cached += 1
             logger.info(f"  Cached (score: {cached_analysis['score']}/100)")
             continue
 
-        if status == "reposted":
+        elif cache_status == "reposted":
             logger.info("  Reposted - re-analyzing...")
+            job["analysis"] = cached_analysis  # Though None, kept for clarity
             job["cache_status"] = "reposted"
         else:
             logger.info("  New job - analyzing...")
             job["cache_status"] = "new"
 
+        screen_result = screen_job(
+            candidate_profile,
+            job,
+            fast_model,
+            fast_api_key,
+            preferred_locations=runtime_location_prefs,
+            candidate_preferences=runtime_candidate_preferences,
+        )
+        logger.info(
+            "  Screen: %s (%.2f) | %s",
+            ("Review" if str(screen_result.get("decision", "review")).strip().lower() in {"review", "borderline"} else str(screen_result.get("decision", "review")).strip().title()),
+            screen_result.get("confidence", 0.0),
+            screen_result.get("reason", ""),
+        )
+
+        if should_bypass_premium_score(screen_result):
+            logger.info("  Premium scoring bypassed due to confident screen reject")
+            analysis = build_screen_reject_analysis(screen_result, SCORING_VERSION)
+            analysis["prepared_job_description"] = job.get("description", "")
+            job["analysis"] = analysis
+            job["cache_status"] = "filtered"
+            scored_filtered += 1
+            cache.save(job, job_key, analysis)
+            continue
+
         analysis = score_job(
-            resume_text,
+            runtime_resume_text,
             job,
             model,
-            api_key,
-            preferred_locations=location_prefs,
-            candidate_preferences=candidate_preferences,
+            premium_api_key,
+            preferred_locations=runtime_location_prefs,
+            candidate_preferences=runtime_candidate_preferences,
+            candidate_profile=candidate_profile,
         )
+        analysis["screen_result"] = screen_result
+        analysis["screen_system_prompt"] = SCREEN_SYSTEM_PROMPT
+        analysis["screen_user_prompt"] = screen_result.get("raw_prompt", "")
+        analysis["screen_raw_output"] = screen_result.get("raw_content", "")
+        analysis["screen_raw_response_json"] = screen_result.get("raw_response_json", "")
+        analysis["screen_model_used"] = screen_result.get("model_used", "")
+        analysis["screen_attempts"] = screen_result.get("screen_attempts", [])
+        analysis.setdefault("qa_result", {})
+        analysis.setdefault("qa_system_prompt", "")
+        analysis.setdefault("qa_user_prompt", "")
+        analysis.setdefault("qa_raw_output", "")
+        analysis.setdefault("qa_raw_response_json", "")
+        analysis.setdefault("qa_model_used", "")
         job["analysis"] = analysis
 
         if analysis["score"] > 0 or "Error" not in analysis.get("verdict", ""):
-            if status == "reposted":
+            if cache_status == "reposted":
                 scored_reposted += 1
             else:
                 scored_new += 1
@@ -280,6 +410,7 @@ def run_pipeline(
         f"     New:       {scored_new}\n"
         f"     Cached:    {scored_cached}\n"
         f"     Reposted:  {scored_reposted}\n"
+        f"     Filtered:  {scored_filtered}\n"
         f"     Failed:    {scored_fail}"
     )
 
@@ -290,10 +421,10 @@ def run_pipeline(
     prepare_results(all_jobs)
     report_path = generate_report(
         all_jobs,
-        resume_path,
+        resume_display_name,
         model,
         all_filter_stats,
-        preferred_locations=location_prefs,
+        preferred_locations=runtime_location_prefs,
     )
     logger.info(f"\nReport saved to: {report_path}")
 
@@ -303,14 +434,17 @@ def run_pipeline(
     highest_score = max(scores) if scores else 0
 
     return {
-        "resume_path": str(Path(resume_path).resolve()),
+        "resume_path": str(Path(resume_path).resolve()) if resume_path else "",
+        "resume_name": resume_display_name,
         "config_path": str(Path(config_path).resolve()) if config_path else "",
+        "candidate_profile_path": str(Path(candidate_profile_path).resolve()) if candidate_profile_path else "",
         "model": model,
         "companies_scanned": len(selected_companies),
         "jobs_found": len(all_jobs),
         "scored_new": scored_new,
         "scored_cached": scored_cached,
         "scored_reposted": scored_reposted,
+        "scored_filtered": scored_filtered,
         "scored_failed": scored_fail,
         "highest_score": highest_score,
         "average_score": average_score,
@@ -321,6 +455,7 @@ def run_pipeline(
         "top_matches": report_summary["top_matches"],
         "force_rescore": force_rescore,
         "company_filters": company_filters or [],
+        "run_source": "local",
     }
 
 
@@ -334,7 +469,10 @@ def print_summary(summary: dict) -> None:
     print(f"  New (LLM):          {summary['scored_new']}")
     print(f"  Cached:             {summary['scored_cached']}")
     print(f"  Reposted:           {summary['scored_reposted']}")
+    print(f"  Filtered:           {summary['scored_filtered']}")
     print(f"  Failed:             {summary['scored_failed']}")
+    if summary.get("candidate_profile_path"):
+        print(f"  Candidate profile:  {summary['candidate_profile_path']}")
     if summary["jobs_found"]:
         print(f"  Highest score:      {summary['highest_score']}/100")
         print(f"  Average score:      {summary['average_score']}/100")
@@ -345,6 +483,28 @@ def print_summary(summary: dict) -> None:
 def print_job_debug(job_debug: dict) -> None:
     """Print a cached job debug payload for inspection."""
     print(json.dumps(job_debug, indent=2, ensure_ascii=False))
+
+
+def maybe_send_telegram(summary: dict) -> None:
+    """Send summary and report to Telegram if secrets are present."""
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not bot_token or not chat_id:
+        logger.info("Telegram credentials missing; skipping local Telegram delivery.")
+        return
+
+    try:
+        message = format_summary_message(summary)
+        send_message(bot_token, chat_id, message)
+        send_document(
+            bot_token,
+            chat_id,
+            summary["report_path"],
+            caption="Job Hunter report",
+        )
+        logger.info("Telegram notification sent.")
+    except Exception as exc:
+        logger.warning(f"Failed to send Telegram notification: {exc}")
 
 
 def main():
@@ -359,14 +519,12 @@ def main():
         print_job_debug(job_debug)
         return
 
-    if not args.resume:
-        raise SystemExit("--resume is required unless --show-job-debug is used.")
-
     summary = run_pipeline(
         resume_path=args.resume,
         config_path=args.config,
         force_rescore=args.force_rescore,
         company_filters=args.company_filters,
+        refresh_candidate_profile=args.refresh_candidate_profile,
     )
 
     if args.summary_json:
@@ -378,6 +536,10 @@ def main():
         )
 
     print_summary(summary)
+    if not args.skip_telegram:
+        maybe_send_telegram(summary)
+    else:
+        logger.info("Telegram notification skipped by flag.")
 
 
 if __name__ == "__main__":

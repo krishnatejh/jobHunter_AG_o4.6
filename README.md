@@ -1,6 +1,6 @@
-﻿# Job Hunter Agent
+# Job Hunter Agent
 
-An automated job discovery and scoring pipeline that scrapes supported ATS boards, filters jobs by recency and location, scores them against a resume with an LLM, caches results, and produces an interactive HTML report.
+An automated job discovery and matching pipeline that scrapes supported ATS boards, filters jobs by recency and location, screens and scores them against a candidate profile, caches results, and produces an interactive HTML report.
 
 ## What It Does
 
@@ -8,40 +8,46 @@ An automated job discovery and scoring pipeline that scrapes supported ATS board
   - Workday
   - SmartRecruiters
   - Greenhouse
-- filters jobs before scoring using:
+- filters jobs before LLM calls using:
   - `recency_days`
-  - `location_preferences`
-- scores matched jobs with an LLM using:
-  - resume text
-  - configured preferred locations
-  - optional `candidate_preferences` from `config.json`
-- caches scored jobs in SQLite to avoid repeated LLM calls
-- generates a report with four sections:
+  - deterministic title filtering
+- builds and uses a sanitized `candidate_profile.json`
+- runs a two-stage evaluation flow:
+  - Stage 1: fast LLM triage (`Pass`, `Borderline`, `Reject`)
+  - Stage 2: premium LLM scoring for jobs that survive stage 1
+- caches results in SQLite to avoid repeated work
+- generates an HTML report with four sections:
   - `New Findings`
   - `Cached Findings`
   - `Borderline`
   - `Waitlist`
-- supports scheduled/manual GitHub Actions runs and Telegram delivery
+- includes a compact `Screen` indicator in the report
+- supports GitHub Actions runs and Telegram delivery
+- supports Telegram delivery for local runs too
 
-## Current Scoring Model
+## Current Matching Model
 
-The scorer is resume-based, prompt-auditable, and cache-versioned.
+The current matcher is candidate-profile-based, prompt-auditable, and cache-versioned.
 
-It now includes:
-- structured JSON scoring from the LLM
-- deterministic final score calculation in code
+Implemented today and currently active:
+- sanitized candidate profile generation and loading
+- separate stage-1 screening prompt and stage-2 scoring prompt
+- deterministic title pre-filtering before LLM calls
+- stage-1 screen routing with `Pass`, `Borderline`, and `Reject`
+- structured JSON scoring from the premium model
 - parse-failure retry with JSON repair
-- preferred-location handling from `config.json`
-- audit storage for:
-  - raw prompts
-  - raw model output
-  - structured analysis
+- preferred-location handling from `candidate_profile.json`
+- stage-level audit storage for prompts and raw API responses
+- compact `Screen` indicator in the report
 
-The current report buckets are:
+Prepared but not yet active:
+- QA stage prompt/config/cache shape
+
+Current report buckets:
 - `New Findings`: new/reposted jobs with score `>= 70`
 - `Cached Findings`: cached jobs with score `>= 70`
-- `Borderline`: jobs with score `40-69`
-- `Waitlist`: jobs with score `< 40`
+- `Borderline`: jobs with score `50-69`
+- `Waitlist`: jobs with score `< 50`
 
 ## Setup
 
@@ -55,9 +61,25 @@ Create `.env` with:
 
 ```text
 OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_FAST_MODEL=nvidia/nemotron-3-super-120b-a12b:free
+OPENROUTER_PREMIUM_MODEL=nvidia/nemotron-3-super-120b-a12b:free
+OPENROUTER_QA_MODEL=nvidia/nemotron-3-super-120b-a12b:free
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 TELEGRAM_CHAT_ID=your_telegram_chat_id_here
 ```
+
+Optional stage-specific API keys:
+
+```text
+OPENROUTER_FAST_API_KEY=your_fast_model_key
+OPENROUTER_PREMIUM_API_KEY=your_premium_model_key
+OPENROUTER_QA_API_KEY=your_qa_model_key
+```
+
+Notes:
+- if you do not set stage-specific keys, all stages fall back to `OPENROUTER_API_KEY`
+- `OPENROUTER_QA_MODEL` can be configured now, but QA review is not yet active in the runtime pipeline
+- `.env` files created by PowerShell may be UTF-16; the loader includes a fallback for that
 
 ## Onboarding Companies
 
@@ -69,30 +91,67 @@ python onboard.py --company "Razorpay" --ats greenhouse --refresh
 python onboard.py --list
 ```
 
+## Candidate Profile Workflow
+
+The runtime no longer relies only on raw resume text.
+
+It generates and uses:
+- [candidate_profile.json](./data/candidate_profile.json)
+
+This profile is the primary LLM input layer and contains:
+- short and long candidate summaries
+- target roles
+- avoid roles
+- preferred locations
+- preferred seniority
+- evidence highlights
+- not-directly-evidenced areas
+- redacted resume context for premium scoring
+
+Important behavior:
+- the premium scorer uses the richer candidate profile view
+- the fast screener uses a compact candidate profile view
+- if you manually fine-tune `candidate_profile.json`, do not use `--refresh-candidate-profile` unless you want it regenerated
+- preferred locations for filtering, screening, scoring, and report display now come from `candidate_profile.json`
+
 ## Running Locally
 
 Standard run:
 
 ```powershell
-python main.py --resume resume.pdf
+python main.py
 ```
+
+This uses the existing `candidate_profile.json`. `--resume` is only required when creating or refreshing the profile.
 
 Single company:
 
 ```powershell
-python main.py --resume resume.pdf --company "Razorpay"
+python main.py --company "Razorpay"
 ```
 
 Multiple companies:
 
 ```powershell
-python main.py --resume resume.pdf --company "Razorpay" --company "Visa"
+python main.py --company "Razorpay" --company "Visa"
 ```
 
 Force re-score:
 
 ```powershell
-python main.py --resume resume.pdf --force-rescore
+python main.py --force-rescore
+```
+
+Refresh the candidate profile from the current resume:
+
+```powershell
+python main.py --resume resume.pdf --refresh-candidate-profile
+```
+
+Skip Telegram for a local run:
+
+```powershell
+python main.py --skip-telegram
 ```
 
 Show cached debug payload for one job:
@@ -101,12 +160,76 @@ Show cached debug payload for one job:
 python main.py --show-job-debug 4667645005
 ```
 
+Local Telegram behavior:
+- if `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set, local runs send the summary and HTML report to Telegram
+- the Telegram success message for local runs is labeled as `Local run`
+
+## Screening and Scoring Flow
+
+The current runtime flow is:
+
+1. deterministic title pre-filter
+2. fast LLM screen
+3. premium LLM score for jobs that survive stage 1
+
+Stage 1:
+- uses a compact candidate profile prompt
+- uses a condensed job summary focused on qualifications and responsibilities
+- returns one of:
+  - `Pass`
+  - `Borderline`
+  - `Reject`
+- can bypass premium scoring on a confident `Reject`
+
+Stage 2:
+- uses the richer candidate context
+- uses the full prepared job description
+- returns the final structured score
+
+Current routing rule:
+- confident stage-1 `Reject` can bypass premium scoring
+- `Pass` and `Borderline` continue to premium scoring
+
+## Report Behavior
+
+The report includes:
+- first-page jump links
+- global filters
+- role links to analysis cards in the first three sections
+- external `Apply/Open` links
+- `Why Waitlist` summaries for low-score jobs
+- preferred-location note in the header
+- a compact `Screen` indicator in the tables and detail cards
+
+`Screen` currently shows:
+- `Pass`
+- `Borderline`
+- `Reject`
+- `N/A` for older rows without screen-stage data
+
+Sections:
+1. `New Findings`
+2. `Cached Findings`
+3. `Borderline`
+4. `Waitlist`
+
+## Telegram Delivery
+
+Telegram delivery is available in two paths:
+- local runs via `main.py`
+- automation runs via `scripts/automation_runner.py`
+
+Local runs:
+- send the summary and generated HTML report when Telegram secrets are present
+- can be disabled with `--skip-telegram`
+
+Automation runs:
+- use `scripts/automation_runner.py`
+- send the summary and latest report artifact
+
 ## GitHub Actions Automation
 
 The repo includes `.github/workflows/job-hunter.yml` for:
-
-- daily schedule at 7:30 PM IST (2:00 PM UTC)
-
 - scheduled daily runs
 - manual `workflow_dispatch`
 - optional `company` input
@@ -122,6 +245,18 @@ TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 ```
 
+Recommended repository variables:
+
+```text
+OPENROUTER_FAST_MODEL
+OPENROUTER_PREMIUM_MODEL
+OPENROUTER_QA_MODEL
+```
+
+Compatibility notes:
+- `OPENROUTER_MODEL` and `config.model` still work as fallback for the premium model
+- the code now supports explicit fast/premium/QA model selection
+
 State persisted between runs:
 - `data/job_history.db`
 - `data/company_cache.json`
@@ -129,68 +264,23 @@ State persisted between runs:
 
 ## Config Reference
 
-`config.json` now supports both run settings and candidate intent.
+`config.json` now focuses on run configuration only. Candidate intent, including preferred locations, lives in `candidate_profile.json`. Model selection can come from environment variables or a fallback `model` field in `config.json`.
 
 Example:
 
 ```json
 {
-  "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "location_preferences": [
-    "Remote",
-    "India",
-    "Bangalore",
-    "Pune",
-    "Bengaluru",
-    "Mysore"
-  ],
   "recency_days": 30,
-  "candidate_preferences": {
-    "target_roles": [
-      "Solution Architect",
-      "Delivery",
-      "Product Manager",
-      "Banking Solutions"
-    ],
-    "avoid_role_families": [
-      "Sales",
-      "Alliances",
-      "Account Management",
-      "HR"
-    ],
-    "seniority_preference": "manager_to_senior_manager",
-    "primary_domains": [
-      "Banking",
-      "Payments",
-      "Fintech",
-      "Core Banking"
-    ],
-    "notes_for_matcher": "Adjacent product and banking strategy roles are acceptable; customer-facing TAM and pure sales are lower priority."
-  },
   "companies": []
 }
 ```
 
 Notes:
-- `location_preferences` are used both for pre-filtering and for location scoring guidance
-- `candidate_preferences` are currently used as prompt guidance only
-- `candidate_preferences` do not directly alter deterministic score math
-
-## Report Behavior
-
-The report includes:
-- first-page jump links
-- global filters
-- role links to analysis cards in the first three sections
-- external `Apply/Open` links
-- `Why Waitlist` summaries for low-score jobs
-- preferred-location note in the header
-
-Sections:
-1. `New Findings`
-2. `Cached Findings`
-3. `Borderline`
-4. `Waitlist`
+- `OPENROUTER_PREMIUM_MODEL` is the preferred source of truth for the premium scorer
+- `OPENROUTER_FAST_MODEL` is used by the fast screener
+- `OPENROUTER_QA_MODEL` is reserved for the QA stage
+- `config.json` may still contain `model` as a fallback
+- target roles, avoid roles, seniority, matcher notes, and preferred locations now come from `candidate_profile.json`
 
 ## Debugging and Inspection
 
@@ -204,9 +294,21 @@ This returns:
 - job metadata
 - prepared job description
 - structured analysis
-- raw prompts
-- raw model output
+- stage-1 screen result
+- stage-1 raw prompts
+- stage-1 raw model output
+- stage-1 raw API response JSON
+- stage-2 raw prompts
+- stage-2 raw model output
+- stage-2 raw reasoning
+- stage-2 raw API response JSON
 - scoring version
+
+Current practical use cases:
+- understand why a role was screened out
+- compare stage-1 and stage-2 behavior
+- inspect malformed or empty provider responses
+- validate prompt changes against recent jobs
 
 ## Project Structure
 
@@ -221,11 +323,14 @@ jobHunter_AG_o4.6/
     automation_runner.py
   src/
     analyzer.py
+    candidate_profile.py
     config_loader.py
     job_cache.py
     reporter.py
     resume_parser.py
+    screener.py
     telegram_notifier.py
+    title_filter.py
     scrapers/
       base.py
       greenhouse.py
@@ -234,6 +339,7 @@ jobHunter_AG_o4.6/
   templates/
     report_template.html
   data/
+    candidate_profile.json
     job_history.db
     company_cache.json
   output/
@@ -243,9 +349,12 @@ jobHunter_AG_o4.6/
 ## Current Notes
 
 - scoring is still being calibrated against user judgment
-- candidate preferences are intentionally prompt-only for now
+- candidate preferences are intentionally prompt-oriented for now
 - cached and fresh jobs now preserve the same structured analysis quality
 - parse-failure retry is enabled to recover malformed model JSON before accepting a failed score
+- stage-1 screening is compact and heuristic-driven, but still intentionally conservative around uncertain roles
+- QA stage is not yet active, even though config keys and cache/debug placeholders exist
+- local Telegram delivery is available when Telegram secrets are configured
 
 ## Planned Next Phases
 
@@ -253,6 +362,4 @@ jobHunter_AG_o4.6/
 - further score calibration against user-labeled jobs across role families
 - generic role-family logic improvements that stay resume-agnostic and company-agnostic
 - smarter distinction between mandatory requirements and strong preferences
-- optional use of candidate_preferences from config.json as prompt guidance to improve borderline decisions
-
-
+- optional use of candidate preferences to improve borderline decisions

@@ -12,9 +12,14 @@ def format_summary_message(summary: dict) -> str:
     """Format a Telegram-friendly success message."""
     sections = summary.get("sections", {})
     top_matches = summary.get("top_matches", [])
+    run_source = str(summary.get("run_source", "unknown")).strip().lower()
+    source_label = {
+        "local": "Local run",
+        "automation": "Automation run",
+    }.get(run_source, "Run")
 
     lines = [
-        "Job Hunter run completed successfully.",
+        f"Job Hunter {source_label} completed successfully.",
         "",
         f"Companies scanned: {summary.get('companies_scanned', 0)}",
         f"Jobs found: {summary.get('jobs_found', 0)}",
