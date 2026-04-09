@@ -89,9 +89,8 @@ def maybe_send_telegram(summary: dict) -> None:
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
     if not bot_token or not chat_id:
-        raise EnvironmentError(
-            "TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set for Telegram delivery."
-        )
+        logger.info("Telegram credentials missing; skipping automation Telegram delivery.")
+        return
 
     message = format_summary_message(summary)
     send_message(bot_token, chat_id, message)

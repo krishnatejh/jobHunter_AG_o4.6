@@ -248,10 +248,24 @@ TELEGRAM_CHAT_ID
 Recommended repository variables:
 
 ```text
+OPENROUTER_MODEL
 OPENROUTER_FAST_MODEL
 OPENROUTER_PREMIUM_MODEL
 OPENROUTER_QA_MODEL
 ```
+
+Optional repository secrets for stage-specific API keys:
+
+```text
+OPENROUTER_FAST_API_KEY
+OPENROUTER_PREMIUM_API_KEY
+OPENROUTER_QA_API_KEY
+```
+
+GitHub Actions now mirrors local environment handling:
+- if stage-specific model variables are unset, the runtime falls back to `OPENROUTER_MODEL`
+- if stage-specific API key secrets are unset, the runtime falls back to `OPENROUTER_API_KEY`
+- if Telegram secrets are unset, the run still completes and skips Telegram delivery
 
 Compatibility notes:
 - `OPENROUTER_MODEL` and `config.model` still work as fallback for the premium model
