@@ -57,6 +57,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Only run for the specified company name. Repeat to target multiple companies.",
     )
     parser.add_argument(
+        "--max-jobs",
+        type=int,
+        default=None,
+        help="Process at most this many uncached jobs in this run.",
+    )
+    parser.add_argument(
         "--summary-json",
         default=str(DEFAULT_SUMMARY_PATH),
         help="Where to write the structured JSON summary.",
@@ -126,6 +132,7 @@ def main() -> int:
             config_path=args.config,
             force_rescore=args.force_rescore,
             company_filters=args.company_filters,
+            max_jobs=args.max_jobs,
         )
         summary["report_path"] = ensure_latest_report(summary["report_path"])
         summary["summary_path"] = str(Path(args.summary_json).resolve())

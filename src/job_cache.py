@@ -242,6 +242,10 @@ class JobCache:
             )
             return None, "reposted"
 
+        verdict = row["verdict"] or ""
+        if verdict.startswith("Skipped by title filter:"):
+            return self._row_to_analysis(row), "cached"
+
         if self._is_legacy_analysis(row):
             logger.info("    Re-scoring due to incomplete cached structured analysis")
             return None, "reposted"

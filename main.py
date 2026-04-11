@@ -79,6 +79,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Only run for the specified company name. Repeat to target multiple companies.",
     )
     parser.add_argument(
+        "--max-jobs",
+        type=int,
+        default=None,
+        help="Process at most this many uncached jobs in this run. Cached jobs do not count toward the limit.",
+    )
+    parser.add_argument(
         "--summary-json",
         default=None,
         help="Optional path to write the structured run summary as JSON.",
@@ -107,6 +113,7 @@ def run_pipeline(
     force_rescore: bool = False,
     company_filters: list[str] | None = None,
     refresh_candidate_profile: bool = False,
+    max_jobs: int | None = None,
 ) -> dict:
     """Run the full pipeline and return a structured summary."""
     logger.info("Loading configuration...")
@@ -152,6 +159,8 @@ def run_pipeline(
     logger.info(f"  Fast model:    {fast_model}")
     logger.info(f"  Companies:  {selected_companies}")
     logger.info(f"  Recency:    {recency_days} days")
+    if max_jobs:
+        logger.info(f"  Max uncached jobs this run: {max_jobs}")
 
     profile_path_obj = Path(candidate_profile_path) if candidate_profile_path else None
     existing_profile = (
@@ -291,12 +300,45 @@ def run_pipeline(
 
     if force_rescore:
         logger.info("  --force-rescore: ignoring cache, re-scoring all jobs")
+        cache_lookup_results = [(None, "new") for _ in all_jobs]
+        cached_ready = 0
+        uncached_remaining = len(all_jobs)
+    else:
+        cache_lookup_results = []
+        cached_ready = 0
+        uncached_remaining = 0
+        for job in all_jobs:
+            cached_analysis, cache_status = cache.lookup(
+                company=job.get("company", ""),
+                job_key=JobCache.make_job_key(job),
+                posted_date=job.get("posted_date", ""),
+                scoring_version=SCORING_VERSION,
+            )
+            cache_lookup_results.append((cached_analysis, cache_status))
+            if cache_status == "cached" and cached_analysis:
+                cached_ready += 1
+            else:
+                uncached_remaining += 1
+
+    logger.info(
+        "  Backlog: matched=%s | cached-ready=%s | uncached/reposted=%s",
+        len(all_jobs),
+        cached_ready,
+        uncached_remaining,
+    )
+    if max_jobs:
+        logger.info(
+            "  This run will process up to %s uncached jobs before stopping.",
+            min(max_jobs, uncached_remaining),
+        )
 
     scored_new = 0
     scored_cached = 0
     scored_reposted = 0
     scored_fail = 0
     scored_filtered = 0
+    processed_uncached = 0
+    max_jobs_reached = False
 
     for i, job in enumerate(all_jobs, 1):
         job_key = JobCache.make_job_key(job)
@@ -304,32 +346,35 @@ def run_pipeline(
         posted_date = job.get("posted_date", "")
 
         logger.info(f"\n[{i}/{len(all_jobs)}] {job['title']} @ {company}")
-
-        # Title pre-filter — skip obviously irrelevant roles before LLM call
-        skip, skip_reason = should_skip_job(job.get("title", ""), runtime_candidate_preferences)
-        if skip:
-            logger.info(f"  Skipped (title filter: {skip_reason})")
-            job["analysis"] = make_skip_analysis(skip_reason)
-            job["cache_status"] = "filtered"
-            scored_filtered += 1
-            continue
         logger.info(f"  Key: {job_key}")
 
-        if not force_rescore:
-            cached_analysis, cache_status = cache.lookup(
-                company=company,
-                job_key=job_key,
-                posted_date=posted_date,
-                scoring_version=SCORING_VERSION,
-            )
-        else:
-            cached_analysis, cache_status = None, "new"
+        cached_analysis, cache_status = cache_lookup_results[i - 1]
 
         if cache_status == "cached" and cached_analysis:
             job["analysis"] = cached_analysis
             job["cache_status"] = "cached"
             scored_cached += 1
             logger.info(f"  Cached (score: {cached_analysis['score']}/100)")
+            continue
+
+        if max_jobs and processed_uncached >= max_jobs:
+            logger.info(
+                "Reached --max-jobs=%s after processing %s uncached jobs; stopping early.",
+                max_jobs,
+                processed_uncached,
+            )
+            max_jobs_reached = True
+            break
+
+        processed_uncached += 1
+
+        skip, skip_reason = should_skip_job(job.get("title", ""), runtime_candidate_preferences)
+        if skip:
+            logger.info(f"  Skipped (title filter: {skip_reason})")
+            job["analysis"] = make_skip_analysis(skip_reason)
+            job["cache_status"] = "filtered"
+            scored_filtered += 1
+            cache.save(job, job_key, job["analysis"])
             continue
 
         elif cache_status == "reposted":
@@ -455,6 +500,9 @@ def run_pipeline(
         "top_matches": report_summary["top_matches"],
         "force_rescore": force_rescore,
         "company_filters": company_filters or [],
+        "max_jobs": max_jobs or 0,
+        "processed_uncached": processed_uncached,
+        "max_jobs_reached": max_jobs_reached,
         "run_source": "local",
     }
 
@@ -471,6 +519,9 @@ def print_summary(summary: dict) -> None:
     print(f"  Reposted:           {summary['scored_reposted']}")
     print(f"  Filtered:           {summary['scored_filtered']}")
     print(f"  Failed:             {summary['scored_failed']}")
+    if summary.get("max_jobs"):
+        print(f"  Max uncached jobs:  {summary['max_jobs']}")
+        print(f"  Processed uncached: {summary.get('processed_uncached', 0)}")
     if summary.get("candidate_profile_path"):
         print(f"  Candidate profile:  {summary['candidate_profile_path']}")
     if summary["jobs_found"]:
@@ -525,6 +576,7 @@ def main():
         force_rescore=args.force_rescore,
         company_filters=args.company_filters,
         refresh_candidate_profile=args.refresh_candidate_profile,
+        max_jobs=args.max_jobs,
     )
 
     if args.summary_json:
