@@ -11,3 +11,5 @@ scripts/__pycache__/
 data/job_history.db
 output/latest_report.html
 output/last_run_summary.json
+template/system_prompt_sample.txt
+template/user_promt_sample.txt

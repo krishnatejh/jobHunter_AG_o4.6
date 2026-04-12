@@ -1,0 +1,226 @@
+## Candidate Profile
+Short summary: 17+ years experienced Platform and Solution Architect in Core Banking, Payments, and Fintech, with hands-on leadership in platform engineering, system integration, and large-scale banking transformations.
+Long summary: Platform and Solution Architect with 17+ years of experience in Core Banking, Payments, and Fintech. Strong background in building and evolving banking platforms, leading engineering teams, and delivering regulatory and business-critical initiatives across global markets (India, APAC, Africa).Currently working at Director level, leading platform engineering, architecture, and delivery for core banking systems. Key experience includes post-merger platform decoupling, migration of banking entities to partner ecosystems, and ongoing transformation of applications from Credit Suisse to UBS platforms involving refactoring, rehosting, and re-engineering.Hands-on experience across core banking and surrounding systems including payments and regulatory reporting, with strong focus on integration, platform governance, and architecture decision-making. Best aligned to roles in Solution Architecture, Platform Architecture, and senior engineering or delivery leadership.
+Target roles: Solution Architect, Enterprise Architect, Platform Architect, Domain Architect, Integration Architect, Core Banking Architect, Architect, Head of Engineering, Engineering Manager, Senior Engineering Manager, Director Technology, VP Engineering, Staff Engineer, Director of Engineering, Platform Engineering, Delivery Lead, Delivery Manager, Technical Product Manager, Product Manager, Platform Engineer Manager, Platform Director, Payments Architect, Vice President, CTO, Core Banking Platform Owner, Platform Owner, Product Owner, Platform Lead
+Avoid roles: Sales, Alliances, Account Management, HR, Operations
+Preferred seniority: manager_to_senior_manager_to_director
+Preferred locations: Remote, India, Bangalore, Pune, Bengaluru, Mysore
+Core domains: Core Banking, Payments, Fintech, Delivery, Architecture, Product / Platform, Banking, BFSI, Wealth Management, Investment Banking
+Evidence highlights: Solution architecture, Architecture governance, Platform delivery, Core banking, Payments, Stakeholder management, Team leadership, Adjacent product ownership
+Not directly evidenced: FX derivatives operations, Middle office / product control, Institutional investment operations, Deep AI/ML product ownership
+Matcher notes: Adjacent product and banking strategy roles are acceptable; customer-facing TAM and pure sales are lower priority.
+Full redacted resume context:
+Professional Summary
+Platform and Solution Architect with 17+ years of experience in Banking and Payment sectors. Proven
+success in developing and enhancing banking platforms, leading engineering teams, and delivering
+regulatory and business critical initiatives across India, APAC and  Africa.
+Currently serving at a Director level, overseeing platform architecture and delivery for core banking
+systems.
+Core Expertise
+Architecture & Engineering
+●  Solution Architecture and HLD/LLD design
+●  Distributed Systems, Integration, Event-driven systems
+●  Core Banking Modernization (Finacle 10X)
+Banking & Payments
+●  Banking modules - CASA, Lending, Trade Finance, GL
+●  Payments: UPI, RTGS, NEFT, SWIFT, NACH
+●  Regulatory & Compliance Systems (ALM, AML, ISO20022)
+●  Wealth Management
+Platform & Delivery Leadership
+●  Platform Governance and Design Authority
+●  Large-scale Program Delivery
+●  Stakeholder & Vendor Management
+Technology Stack
+●  APIs, Kafka, MQ, ESB, REST/SOAP
+●  Tools: Jira, GitLab, Postman, JMeter
+●  Oracle, PL/SQL, Python, Unix, Shell scripting, Finacle scripting
+Work Experience
+1.	  UBS Business Solutions, Pune
+Director  Core Platform Delivery:  Apr 2025 – Till Date
+●  Lead platform engineering, architecture, and delivery for core banking platform,
+managing a team of 15+ across diﬀerent banking systems.
+●  Deﬁne architecture and drive design reviews to ensure alignment with business and
+regulatory standards.
+●  Led decoupling and platform migration across banking and enterprise systems.
+●  Work closely with stakeholders across business, compliance, and engineering for
+regulatory and strategic initiatives.
+●  Own platform architecture roadmap and design standards for core banking systems.
+Page  1  of  3
+Key Accomplishments:
+✔   Owned core banking workstream for migration of ex-Credit Suisse India entities to
+partner platform (360 ONE) post UBS acquisition, supporting complex multi-system data
+migration and regulatory alignment.
+✔   Leading migration workstream for branch entity applications from Credit Suisse to UBS
+platforms. This involved refactoring, rehosting, and re-engineering eﬀorts, including
+decoupling applications from the legacy landscape and integrating them into the UBS
+ecosystem.
+2.  Credit Suisse Services AG, Pune
+Assistant Vice President  Core Banking Platform:  Dec 2019 – Mar 2025
+●  Led in-house development team of seven resources for delivering all core banking
+platform related changes.
+●  Led solution architecture and delivery for core banking platform across private banking
+and wealth management domain.
+●  Established architecture governance via platform design authority for all major system
+changes.
+●  Delivered multiple transformation programs across payments, regulatory, and product
+domains.
+Key Accomplishments:
+✔   Successful implementation of Finacle core banking system replacing legacy system for
+Private Banking business for bank’s India entity.
+✔   SWIFT cross border payment and reporting systems migration to global mandated
+ISO20022 standards.
+✔   Launch of strategic new business products: NACH, Revolving OD, SBLC/Bank Guarantee
+and FCY Loans.
+✔   Integration of core systems with group risk systems related to sanction ﬁlter, AML/ALM
+and ﬁnance systems related to general ledger using API/MQ/batch extracts.
+✔   Implementation of regulatory mandates like LEI, RTGS 24*7, event-based automated
+customer alerts.
+3.  Ujjivan Small Finance Bank Ltd, Bangalore
+IT Manager – Enterprise Applications:  Feb 2017 – Dec 2019
+●  Led in-house development team of ﬁve resources for all core banking changes related to
+regulatory, new products and services, customer experience or improving operational
+excellence.
+●  Managed end-to-end core systems delivery to drive business and platform initiatives
+involving cross functional teams.
+Key Accomplishments:
+✔   Integrations to core system: UPI, Bill Desk, CIB, LOS systems, NACH.
+✔   New products: Instant kit, Senior Citizen SB product, Business Edge CA product, Personal
+Loan, Vehicle loan, KCC products, NRE/NRO.
+✔   Other signiﬁcant strategic and regulatory projects: API Gateway, Aadhar Vault, PMJJBY,
+GST implementation.
+4.  ANZ Operations and Technology India Pvt Ltd, Bangalore
+Technical Analyst:  Dec 2014 – Jan 2017
+●  Requirement, gap analysis and feasibility of enhancements and change requests.
+●  Technical solution design and development of core banking system changes across APAC
+instances like Hong Kong, China, India, Indonesia, Philippines and Taiwan.
+Page  2  of  3
+Key Accomplishments:
+✔   Finacle core banking implementation for ANZ India bank entity replacing legacy in house
+product.
+✔   Yearly releases like HK16.1, HK 16.2, bonus interest TD product.
+5.  Infosys Limited, Mysore
+Technology Analyst:  Jul 2013 – Dec 2014
+Senior Systems Engineer:  Jan 2011 – Jun 2013
+Systems Engineer:  Nov 2008 – Dec 2010
+●  DRG, gap analysis, product feasibility and solution design of the banking requirements.
+●  Customization of base product to meet the gaps identiﬁed and regulatory compliance
+●  Design, development, code/peer review of customization changes going into production.
+●  L2 Analysis, SIT, UAT and branch simulation support of the issues raised by the client at
+the bank site.
+Key Accomplishments:
+✔   Integration of corporate e-banking application with CBS via online web services, MQ,
+batch interface.
+✔   Standard Bank group’s 17 country ACBP (Africa Core Banking Program).
+✔   EOD-BOD job design, scheduling and performance tuning which helped in reduction of
+COB timings by over 30%
+✔   E2E implementation testing for clients like DBS, RBCZ and Standard Bank Nigeria
+Education
+Board/University/Institution  Result
+SSLC  Karnataka Secondary Education Examination
+Board  90.08%
+PUC  Department of Pre
+University Education, Karnataka  76.33%
+BE  Visveswaraya Technological University, Belgaum  71.42%
+Certiﬁcations:
+●  JAIIB from Indian Institute of Banking and Finance
+●  Microsoft Certiﬁed Azure Fundamentals
+●  TOGAF Enterprise Architecture Practitioner
+Languages:  English, Hindi, Telugu, and Kannada
+
+---
+
+## Job Posting
+Title: Senior Product Designer 
+Location: Bengaluru
+Company: Razorpay
+Configured Preferred Locations: Remote, India, Bangalore, Pune, Bengaluru, Mysore
+
+## Candidate Preferences
+Target roles: Solution Architect, Enterprise Architect, Platform Architect, Domain Architect, Integration Architect, Core Banking Architect, Architect, Head of Engineering, Engineering Manager, Senior Engineering Manager, Director Technology, VP Engineering, Staff Engineer, Director of Engineering, Platform Engineering, Delivery Lead, Delivery Manager, Technical Product Manager, Product Manager, Platform Engineer Manager, Platform Director, Payments Architect, Vice President, CTO, Core Banking Platform Owner, Platform Owner, Product Owner, Platform Lead
+Avoid role families: Sales, Alliances, Account Management, HR, Operations
+Primary domains: Core Banking, Payments, Fintech, Delivery, Architecture, Product / Platform, Banking, BFSI, Wealth Management, Investment Banking
+Preferred seniority: manager_to_senior_manager_to_director
+Matcher notes: Adjacent product and banking strategy roles are acceptable; customer-facing TAM and pure sales are lower priority.
+
+---
+
+Description:
+<div class="content-intro"><p>Razorpay is one of India’s leading full-stack financial technology companies, powering the way businesses move, manage, and grow money. Founded in 2014 by Harshil Mathur and Shashank Kumar with a simple vision — to simplify payments for Indian businesses — we’ve since grown into a fintech powerhouse driving India’s digital payment revolution.</p>
+<p>Razorpay powers millions of businesses with a smarter, scalable stack that goes beyond transactions to help them truly build and grow.</p>
+<p>From seamless checkouts to payroll automation, across India, Singapore, and Malaysia, we’ve been engineering a fintech ecosystem that’s redefining how money moves across Asia — and we’re just getting started.</p>
+<p>Today, that ecosystem supports everyone from early-stage startups to some of India’s largest enterprises, enabling them to accept, process, and disburse payments at scale while expanding into new ways of managing money more efficiently.</p>
+<p>Our scale speaks volumes: Razorpay processes $180+ billion in annualized transactions, powering leading businesses like Airbnb, Facebook, WhatsApp, Airtel, CRED, BookmyShow, Zomato, Swiggy, Lenskart, Mirae Asset Capital markets, Indian Oil, National Pension Scheme — and over 100 of India’s unicorns. With strong roots in India and growing operations in Southeast Asia, we are shaping the next chapter of financial technology across the region.</p>
+<p>We are backed by global investors including GIC, Peak XV Partners (formerly Sequoia Capital India &amp; SEA), Tiger Global, Ribbit Capital, Matrix Partners, MasterCard, and Salesforce Ventures, having raised over $740 million to date. Strategic acquisitions — including Ezetap (POS and offline payments), Curlec (Malaysia expansion), BillMe (digital invoicing), and POP (rewards-first UPI) — along with earlier moves in fraud prevention, payroll, and lending, have further strengthened our platform and widened our footprint across Asia.</p>
+<p>But what truly sets Razorpay apart is our culture. At Razorpay, ownership is our oxygen — you own what you build, with no micromanagement or red tape, just the runway to make your ideas fly. Learning is a lifestyle — if you’re curious, you’ll feel at home here. People &gt; Pedigree — we hire for attitude, hustle, and hunger more than degrees. Transparency thrives over titles — this is where interns question CXOs and CXOs say “thank you.” Guided by our values of Customer First, Autonomy &amp; Ownership, Agility with Integrity, Transparency, Challenging the status quo and a strong belief that Razorpay grows with Razors,&nbsp; you’ll be part of a 3000+ strong team building not just products, but the financial infrastructure of the future.</p></div><p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;"><strong>The Role:</strong>&nbsp;You are someone who believes that good design has a role in the solution to every problem. You know that design is not just how things look and feel, but also how every process evolves. Even mundane processes from daily life can be made easier with design. You love products and have great creative skills. You want to own and be responsible for designing and driving products to completion. You religiously follow Buxton’s rule of producing at least 3 alternatives for every design decision. You respect the grid and hate all the half pixel aligned icons.</span></p>
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;"><strong>Roles and Responsibilities:</strong></span></p>
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">As a Senior Product Designer, you will:</span></p>
+<ul>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Take part in product and design ideation, planning and prioritization of our diverse range of products and features.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Drive user research, create detailed user journeys and take appropriate design decisions backed by user-behavior and data. Define design strategies by analyzing data models and derive best practices within the team.Work closely with cross-disciplinary teams including Product, Engineering, Marketing and various Business teams to deliver delightful customer experiences.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Strategize, develop, and extend the visual design systems and pattern libraries by coming up with new and innovative solutions which suit the Razorpay brand.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Take part in creative and holistic thinking across our diverse products and conduct design reviews and status meetings as needed.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Evangelize design within and outside the organization.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Brainstorm and create new directions that Razorpay can take in our quest to make payments easy and accessible to all.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Effectively mentor and inspire a team of designers. Help the team in raising the bar, resolving blockers, prioritizing and breaking down complex projects into simpler tasks.</span></p>
+</li>
+</ul>
+<p>&nbsp;</p>
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;"><strong>Mandatory Qualifications:</strong></span></p>
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">As a Senior Product Designer, we expect you to have :</span></p>
+<ul>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">3+ years of experience in designing digital products.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Ability to understand short and long-term goals of the product and business.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Keen in applying user research, user-needs validation and usability evaluation. Excellent understanding of user-centered design and visual design principles.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">You understand the importance of behavioral analytics and you go by data-driven decisioning, when needed.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">A good understanding of Frontend principles to guide the team from an engineering point of view.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Excellent communication and presentation skills and the ability to clearly articulate design decisions to the team and leadership.</span></p>
+</li>
+<li style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">
+<p><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">Ability to collaborate with cross-functional teams to define, design and ship new features.</span></p>
+</li>
+</ul>
+<p>&nbsp;</p><div class="content-conclusion"><div class="gmail_default"><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;"><span id="m_2989597180337834284gmail-m_4972969247898306296gmail-docs-internal-guid-3a65a3c2-7fff-88ff-9e94-8ab11a050d04">Razorpay believes in and follows an equal employment opportunity policy that doesn't discriminate on gender, religion, sexual orientation, colour, nationality, age, etc. We welcome interests and applications from all groups and communities across the globe. </span><br></span></div>
+<div class="gmail_default"><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;">&nbsp;</span></div>
+<div class="gmail_default"><span style="font-family: arial, helvetica, sans-serif; font-size: 12pt;"><span id="m_2989597180337834284gmail-m_4972969247898306296gmail-docs-internal-guid-3d0a9248-7fff-a2fd-6fa3-5026f85768d7">Follow us on <a href="https://www.linkedin.com/company/razorpay/mycompany/" target="_blank" data-saferedirecturl="https://www.google.com/url?q=https://www.linkedin.com/company/razorpay/mycompany/&amp;source=gmail&amp;ust=1660290870959000&amp;usg=AOvVaw0f6sCrv8Ce3IHBvN2Sev8Z">LinkedIn</a> &amp; <a href="https://twitter.com/Razorpay" target="_blank" data-saferedirecturl="https://www.google.com/url?q=https://twitter.com/Razorpay&amp;source=gmail&amp;ust=1660290870959000&amp;usg=AOvVaw0ViuP9uutFg1qFCm2nHeh1">Twitter</a></span></span></div></div>
+
+---
+
+Analyze the fit using the required JSON schema. Be explicit about functional-role mismatch, missing hard requirements, and overqualification when relevant.
+
+Important location rule:
+- If the job location matches one of the Configured Preferred Locations, treat location as matched.
+- Do not penalize or mention relocation for jobs that fall within the configured preferred locations.
+- Only use relocation_required or mismatch when the job is clearly outside the configured preferred locations.
+
+Important preference rule:
+- Treat Candidate Preferences as directional guidance, not absolute blockers.
+- Use them to break ties and shape borderline judgments.
+- Do not override explicit hard requirements in the job posting based only on Candidate Preferences.
+
+Important evidence rule:
+- Do not infer direct experience unless the Candidate Profile explicitly supports it.
+- Treat items listed as "Not directly evidenced" as missing unless the job only requires adjacent exposure.
