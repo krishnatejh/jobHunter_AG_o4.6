@@ -36,8 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run Job Hunter in automation mode.")
     parser.add_argument(
         "--resume",
-        default="resume.pdf",
-        help="Path to the resume PDF. Defaults to resume.pdf in the repo root.",
+        default=None,
+        help="Optional path to the resume PDF. Required only when refreshing or rebuilding the candidate profile.",
     )
     parser.add_argument(
         "--config",
@@ -61,6 +61,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Process at most this many uncached jobs in this run.",
+    )
+    parser.add_argument(
+        "--refresh-candidate-profile",
+        action="store_true",
+        help="Regenerate the candidate profile from the resume before running.",
     )
     parser.add_argument(
         "--summary-json",
@@ -132,6 +137,7 @@ def main() -> int:
             config_path=args.config,
             force_rescore=args.force_rescore,
             company_filters=args.company_filters,
+            refresh_candidate_profile=args.refresh_candidate_profile,
             max_jobs=args.max_jobs,
         )
         summary["report_path"] = ensure_latest_report(summary["report_path"])
