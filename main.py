@@ -339,6 +339,7 @@ def run_pipeline(
     scored_filtered = 0
     processed_uncached = 0
     max_jobs_reached = False
+    reported_jobs = []
 
     for i, job in enumerate(all_jobs, 1):
         job_key = JobCache.make_job_key(job)
@@ -355,6 +356,7 @@ def run_pipeline(
             job["cache_status"] = "cached"
             scored_cached += 1
             logger.info(f"  Cached (score: {cached_analysis['score']}/100)")
+            reported_jobs.append(job)
             continue
 
         if max_jobs and processed_uncached >= max_jobs:
@@ -375,6 +377,7 @@ def run_pipeline(
             job["cache_status"] = "filtered"
             scored_filtered += 1
             cache.save(job, job_key, job["analysis"])
+            reported_jobs.append(job)
             continue
 
         elif cache_status == "reposted":
@@ -408,6 +411,7 @@ def run_pipeline(
             job["cache_status"] = "filtered"
             scored_filtered += 1
             cache.save(job, job_key, analysis)
+            reported_jobs.append(job)
             continue
 
         analysis = score_job(
@@ -445,6 +449,8 @@ def run_pipeline(
             scored_fail += 1
             logger.warning(f"  Scoring failed: {analysis['verdict'][:80]}")
 
+        reported_jobs.append(job)
+
         if i < len(all_jobs):
             time.sleep(1)
 
@@ -463,9 +469,9 @@ def run_pipeline(
     logger.info("Generating HTML report...")
     logger.info("=" * 60)
 
-    prepare_results(all_jobs)
+    prepare_results(reported_jobs)
     report_path = generate_report(
-        all_jobs,
+        reported_jobs,
         resume_display_name,
         model,
         all_filter_stats,
@@ -473,8 +479,8 @@ def run_pipeline(
     )
     logger.info(f"\nReport saved to: {report_path}")
 
-    report_summary = summarize_results(all_jobs)
-    scores = [j["analysis"]["score"] for j in all_jobs if j["analysis"]["score"] > 0]
+    report_summary = summarize_results(reported_jobs)
+    scores = [j["analysis"]["score"] for j in reported_jobs if j["analysis"]["score"] > 0]
     average_score = sum(scores) // len(scores) if scores else 0
     highest_score = max(scores) if scores else 0
 
@@ -486,6 +492,7 @@ def run_pipeline(
         "model": model,
         "companies_scanned": len(selected_companies),
         "jobs_found": len(all_jobs),
+        "jobs_reported": len(reported_jobs),
         "scored_new": scored_new,
         "scored_cached": scored_cached,
         "scored_reposted": scored_reposted,
@@ -514,6 +521,8 @@ def print_summary(summary: dict) -> None:
     print("=" * 60)
     print(f"  Companies scanned:  {summary['companies_scanned']}")
     print(f"  Jobs found:         {summary['jobs_found']}")
+    if "jobs_reported" in summary and summary["jobs_reported"] != summary["jobs_found"]:
+        print(f"  Jobs in report:     {summary['jobs_reported']}")
     print(f"  New (LLM):          {summary['scored_new']}")
     print(f"  Cached:             {summary['scored_cached']}")
     print(f"  Reposted:           {summary['scored_reposted']}")
