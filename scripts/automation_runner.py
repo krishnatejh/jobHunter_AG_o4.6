@@ -144,10 +144,11 @@ def publish_to_site(summary: dict, report_path: str) -> None:
         # we need all jobs processed in this run. The summary doesn't have the full list.
         # Instead, we can query the cache for jobs with latest_run_id matching this run.
         # But we don't have a run_id in the summary yet. Let's use the report's timestamp.
-        run_date = summary.get("run_date", "")
-        if not run_date:
-            logger.warning("No run_date in summary; skipping site publish.")
-            return
+run_date = summary.get("run_date")
+    if not run_date:
+        from datetime import date
+        run_date = date.today().isoformat()
+        logger.info(f"No run_date in summary; using today: {run_date}")
 
         # Build jobs payload from cache - get all jobs updated in this run
         # We'll use the summary's run_date to filter
@@ -166,7 +167,7 @@ def publish_to_site(summary: dict, report_path: str) -> None:
 
     payload = {
         "run": {
-            "run_date": summary.get("run_date", ""),
+            "run_date": run_date,
             "model": summary.get("model", ""),
             "fast_model": summary.get("fast_model", ""),
             "fast_provider": summary.get("fast_provider", "openrouter"),
