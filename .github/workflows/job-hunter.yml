@@ -2,7 +2,7 @@
 
 on:
   schedule:
-    - cron: "0 14 * * *"
+    - cron: "0 16 * * *"
   workflow_dispatch:
     inputs:
       force_rescore:
@@ -36,8 +36,13 @@ jobs:
       OPENROUTER_FAST_MODEL: ${{ vars.OPENROUTER_FAST_MODEL }}
       OPENROUTER_PREMIUM_MODEL: ${{ vars.OPENROUTER_PREMIUM_MODEL }}
       OPENROUTER_QA_MODEL: ${{ vars.OPENROUTER_QA_MODEL }}
+      FAST_PROVIDER: ${{ vars.FAST_PROVIDER }}
+TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+      TYPESAFE_MODEL: ${{ vars.TYPESAFE_MODEL }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      SITE_INGEST_URL: ${{ secrets.SITE_INGEST_URL }}
+      SITE_INGEST_TOKEN: ${{ secrets.SITE_INGEST_TOKEN }}
 
     steps:
       - name: Checkout repository

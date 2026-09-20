@@ -14,7 +14,7 @@ from src.candidate_profile import (
     candidate_preferences_from_profile,
     load_candidate_profile,
 )
-from src.config_loader import load_api_key, load_config
+from src.config_loader import get_fast_provider, load_api_key, load_config
 from src.job_cache import JobCache
 from src.reporter import generate_report, prepare_results, summarize_results
 from src.resume_parser import parse_resume
@@ -24,6 +24,7 @@ from src.screener import (
     screen_job,
     should_bypass_premium_score,
 )
+from src.screener_typesafe import screen_job as screen_job_typesafe
 from src.title_filter import make_skip_analysis, should_skip_job
 from src.scrapers.greenhouse import GreenhouseScraper
 from src.scrapers.smart_recruiters import SmartRecruitersScraper
@@ -123,6 +124,8 @@ def run_pipeline(
 
     model = config["premium_model"]
     fast_model = config["fast_model"]
+    fast_provider = get_fast_provider()
+    screen_job_fn = screen_job_typesafe if fast_provider == "typesafe" else screen_job
     companies = config["companies"]
     recency_days = config.get("recency_days", 30)
     legacy_candidate_preferences = {}
@@ -156,7 +159,7 @@ def run_pipeline(
             )
 
     logger.info(f"  Premium model: {model}")
-    logger.info(f"  Fast model:    {fast_model}")
+    logger.info(f"  Fast model:    {fast_model} ({fast_provider})")
     logger.info(f"  Companies:  {selected_companies}")
     logger.info(f"  Recency:    {recency_days} days")
     if max_jobs:
@@ -388,7 +391,7 @@ def run_pipeline(
             logger.info("  New job - analyzing...")
             job["cache_status"] = "new"
 
-        screen_result = screen_job(
+        screen_result = screen_job_fn(
             candidate_profile,
             job,
             fast_model,

@@ -76,8 +76,18 @@ OPENROUTER_PREMIUM_API_KEY=your_premium_model_key
 OPENROUTER_QA_API_KEY=your_qa_model_key
 ```
 
+Optional: use TypeSafe Jev for the stage-1 fast triage instead of OpenRouter:
+
+```text
+FAST_PROVIDER=typesafe
+TYPESAFE_API_KEY=your_typesafe_api_key_here
+TYPESAFE_MODEL=jev-latest
+```
+
 Notes:
 - if you do not set stage-specific keys, all stages fall back to `OPENROUTER_API_KEY`
+- when `FAST_PROVIDER=typesafe`, the fast screener calls the TypeSafe System One API directly and bills your Typesafe credits; stage 2 (premium scoring) still uses OpenRouter
+- when `FAST_PROVIDER=typesafe`, the fast model defaults to `jev-latest` unless `TYPESAFE_MODEL` is set (`OPENROUTER_FAST_MODEL` is ignored in this mode)
 - `OPENROUTER_QA_MODEL` can be configured now, but QA review is not yet active in the runtime pipeline
 - `.env` files created by PowerShell may be UTF-16; the loader includes a fallback for that
 
@@ -260,6 +270,21 @@ Optional repository secrets for stage-specific API keys:
 OPENROUTER_FAST_API_KEY
 OPENROUTER_PREMIUM_API_KEY
 OPENROUTER_QA_API_KEY
+TYPESAFE_API_KEY
+```
+
+Optional repository secrets for yogya site integration:
+
+```text
+SITE_INGEST_URL
+SITE_INGEST_TOKEN
+```
+
+Optional repository variables:
+
+```text
+FAST_PROVIDER
+TYPESAFE_MODEL
 ```
 
 GitHub Actions now mirrors local environment handling:
@@ -293,6 +318,7 @@ Notes:
 - `OPENROUTER_PREMIUM_MODEL` is the preferred source of truth for the premium scorer
 - `OPENROUTER_FAST_MODEL` is used by the fast screener
 - `OPENROUTER_QA_MODEL` is reserved for the QA stage
+- set `FAST_PROVIDER=typesafe` to run the fast screener on TypeSafe's Jev model via `TYPESAFE_API_KEY` (falls back to OpenRouter when unset)
 - `config.json` may still contain `model` as a fallback
 - target roles, avoid roles, seniority, matcher notes, and preferred locations now come from `candidate_profile.json`
 

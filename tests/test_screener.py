@@ -206,6 +206,7 @@ def test_deterministic_screen_does_not_reject_mentor_junior_engineers_phrase():
 def test_load_config_resolves_fast_and_qa_models(monkeypatch):
     config_path = ROOT / "tests" / "_tmp_config_for_test.json"
     config_path.write_text(json.dumps({"companies": [], "model": "base-model"}), encoding="utf-8")
+    monkeypatch.setenv("FAST_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_FAST_MODEL", "fast-model")
     monkeypatch.setenv("OPENROUTER_QA_MODEL", "qa-model")
     monkeypatch.delenv("OPENROUTER_MODEL", raising=False)

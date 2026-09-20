@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from main import print_summary, run_pipeline
+from src.job_cache import JobCache
 from src.telegram_notifier import (
     format_failure_message,
     format_summary_message,
@@ -127,6 +128,88 @@ def send_failure_telegram(stage: str, error: str) -> None:
         logger.warning(f"Failed to send Telegram failure message: {exc}")
 
 
+def publish_to_site(summary: dict, report_path: str) -> None:
+    """Publish the run summary and report HTML to the yogya site."""
+    ingest_url = os.getenv("SITE_INGEST_URL")
+    ingest_token = os.getenv("SITE_INGEST_TOKEN")
+    if not ingest_url or not ingest_token:
+        logger.info("SITE_INGEST_URL or SITE_INGEST_TOKEN not set; skipping site publish.")
+        return
+
+    # Load full job data from cache for this run
+    cache = JobCache()
+    try:
+        jobs_payload = []
+        # Iterate all jobs in the summary's top_matches is not enough;
+        # we need all jobs processed in this run. The summary doesn't have the full list.
+        # Instead, we can query the cache for jobs with latest_run_id matching this run.
+        # But we don't have a run_id in the summary yet. Let's use the report's timestamp.
+        run_date = summary.get("run_date", "")
+        if not run_date:
+            logger.warning("No run_date in summary; skipping site publish.")
+            return
+
+        # Build jobs payload from cache - get all jobs updated in this run
+        # We'll use the summary's run_date to filter
+        pass
+    finally:
+        cache.close()
+
+    # For now, send the summary with available data
+    # The site accepts an empty jobs array; it will still record the run
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            report_html = f.read()
+    except Exception as e:
+        logger.warning(f"Could not read report HTML: {e}")
+        report_html = ""
+
+    payload = {
+        "run": {
+            "run_date": summary.get("run_date", ""),
+            "model": summary.get("model", ""),
+            "fast_model": summary.get("fast_model", ""),
+            "fast_provider": summary.get("fast_provider", "openrouter"),
+            "jobs_found": summary.get("jobs_found", 0),
+            "jobs_reported": summary.get("jobs_reported", 0),
+            "scored_new": summary.get("scored_new", 0),
+            "scored_cached": summary.get("scored_cached", 0),
+            "scored_reposted": summary.get("scored_reposted", 0),
+            "scored_filtered": summary.get("scored_filtered", 0),
+            "scored_failed": summary.get("scored_failed", 0),
+            "highest_score": summary.get("highest_score", 0),
+            "average_score": summary.get("average_score", 0),
+            "filter_stats": summary.get("filter_stats", {}),
+            "sections": summary.get("sections", {}),
+            "ratings": summary.get("ratings", {}),
+            "report_html": report_html,
+        },
+        "jobs": [],
+    }
+
+    import json
+    import urllib.request
+
+    req = urllib.request.Request(
+        os.getenv("SITE_INGEST_URL", ""),
+        data=json.dumps(payload).encode(),
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {ingest_token}",
+            "User-Agent": "curl/8.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode())
+            logger.info(f"Published to site: {result}")
+    except Exception as e:
+        logger.warning(f"Failed to publish to site: {e}")
+        if hasattr(e, "read"):
+            logger.warning(f"Response: {e.read().decode()}")
+
+
 def main() -> int:
     """Run the pipeline and send notifications."""
     args = build_parser().parse_args()
@@ -149,6 +232,9 @@ def main() -> int:
             maybe_send_telegram(summary)
         else:
             logger.info("Telegram notification skipped by flag.")
+
+        # Publish to yogya site (non-blocking, best-effort)
+        publish_to_site(summary, summary["report_path"])
 
         return 0
     except Exception as exc:

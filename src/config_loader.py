@@ -58,7 +58,12 @@ def load_config(config_path: str | None = None) -> dict:
             "or provide 'model' in config.json."
         )
     config["premium_model"] = resolved_base_model
-    config["fast_model"] = fast_model or resolved_base_model
+    config["fast_provider"] = get_fast_provider()
+    if config["fast_provider"] == "typesafe":
+        typesafe_model = os.getenv("TYPESAFE_MODEL", "").strip()
+        config["fast_model"] = typesafe_model or "jev-latest"
+    else:
+        config["fast_model"] = fast_model or resolved_base_model
     config["qa_model"] = qa_model or resolved_base_model
 
     # Defaults
@@ -68,8 +73,22 @@ def load_config(config_path: str | None = None) -> dict:
     return config
 
 
+def get_fast_provider() -> str:
+    """Resolve the stage-1 triage provider from the FAST_PROVIDER env var."""
+    provider = os.getenv("FAST_PROVIDER", "").strip().lower()
+    return "typesafe" if provider in {"typesafe", "type_safe", "jev"} else "openrouter"
+
+
 def load_api_key(kind: str = "premium") -> str:
-    """Load the appropriate OpenRouter API key from environment."""
+    """Load the appropriate LLM API key from environment."""
+    if kind == "fast" and get_fast_provider() == "typesafe":
+        key = os.getenv("TYPESAFE_API_KEY", "").strip()
+        if not key:
+            raise EnvironmentError(
+                "FAST_PROVIDER=typesafe but TYPESAFE_API_KEY is not set. "
+                "Add it to the .env file or environment."
+            )
+        return key
     env_names = {
         "fast": ["OPENROUTER_FAST_API_KEY", "OPENROUTER_API_KEY"],
         "premium": ["OPENROUTER_PREMIUM_API_KEY", "OPENROUTER_API_KEY"],
