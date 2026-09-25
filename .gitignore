@@ -17,3 +17,12 @@ output/last_run_summary.json
 
 # Tool caches/state
 .wrangler/
+
+# Local-only personal/generated files (never commit)
+*.bak
+resume.pdf
+data/candidate_profile.json
+output/
+scripts/*.txt
+filter_test.log
+test_results*.txt

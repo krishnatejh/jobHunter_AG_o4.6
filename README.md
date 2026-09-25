@@ -105,8 +105,11 @@ python onboard.py --list
 
 The runtime no longer relies only on raw resume text.
 
-It generates and uses:
-- [candidate_profile.json](./data/candidate_profile.json)
+It generates and uses a local-only profile:
+- `data/candidate_profile.json` (ignored by git; never commit the real one)
+- [candidate_profile.example.json](./data/candidate_profile.example.json) (synthetic example committed for reference)
+
+Keep your real `resume.pdf` and `data/candidate_profile.json` out of git; they are personal data. Fresh clones start from the synthetic example and regenerate with `--resume resume.pdf --refresh-candidate-profile`.
 
 This profile is the primary LLM input layer and contains:
 - short and long candidate summaries
@@ -132,7 +135,7 @@ Standard run:
 python main.py
 ```
 
-This uses the existing `candidate_profile.json`. `--resume` is only required when creating or refreshing the profile.
+This uses your local `data/candidate_profile.json` (ignored by git; never commit the real one). `--resume` is only required when creating or refreshing the profile. First-time setup: place your own `resume.pdf` next to `main.py`, then run `python main.py --resume resume.pdf --refresh-candidate-profile`. Profile refresh in GitHub Actions is not supported because the resume is local-only; automation reuses the cached profile.
 
 Single company:
 

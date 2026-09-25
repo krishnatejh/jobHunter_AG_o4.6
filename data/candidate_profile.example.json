@@ -1,0 +1,55 @@
+{
+  "profile_version": "v1",
+  "generated_at": "2026-01-01T00:00:00",
+  "source_resume_file": "resume.pdf",
+  "source_hash": "example-hash-do-not-use",
+  "target_roles": [
+    "Solution Architect",
+    "Platform Engineer"
+  ],
+  "avoid_roles": [
+    "Sales",
+    "Support"
+  ],
+  "target_seniority": "senior_to_staff",
+  "preferred_locations": [
+    "Example City",
+    "Remote"
+  ],
+  "core_domains": [
+    "Core Banking",
+    "Payments"
+  ],
+  "years_experience": 10,
+  "candidate_summary_short": "Synthetic example profile. 10 years of experience in banking technology and platform delivery.",
+  "candidate_summary_long": "Synthetic example profile used for documentation and fresh clones. Replace with your own generated profile; never commit real personal data.",
+  "evidence_inventory": {
+    "solution_architecture": true,
+    "platform_delivery": true,
+    "core_banking": true,
+    "payments": true,
+    "stakeholder_management": true,
+    "team_leadership": false,
+    "product_management_adjacent": false,
+    "ai_ml_product": false,
+    "fx_operations": false,
+    "middle_office_controls": false,
+    "institutional_investment_ops": false,
+    "enterprise_architecture": false
+  },
+  "evidence_highlights": [
+    "Solution architecture",
+    "Platform delivery",
+    "Core banking"
+  ],
+  "not_evidenced_directly": [
+    "Deep AI/ML product ownership"
+  ],
+  "role_history": [
+    "Senior Engineer at Example Bank (2018-2022): built payment integrations.",
+    "Solution Architect at Sample Fintech Ltd (2022-present): leads platform design."
+  ],
+  "resume_excerpt_redacted": "Synthetic example excerpt. No personal data.",
+  "notes_for_matcher": "Synthetic example notes.",
+  "llm_context": "Synthetic example context."
+}

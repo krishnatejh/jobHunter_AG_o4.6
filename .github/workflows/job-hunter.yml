@@ -60,6 +60,7 @@ jobs:
           path: |
             data/job_history.db
             data/company_cache.json
+            data/candidate_profile.json
             output/latest_report.html
             output/last_run_summary.json
           key: jobhunter-state-${{ runner.os }}-${{ github.run_id }}
@@ -99,6 +100,7 @@ jobs:
           path: |
             data/job_history.db
             data/company_cache.json
+            data/candidate_profile.json
             output/latest_report.html
             output/last_run_summary.json
           key: jobhunter-state-${{ runner.os }}-${{ github.run_id }}

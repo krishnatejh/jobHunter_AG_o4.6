@@ -488,7 +488,7 @@ def run_pipeline(
     highest_score = max(scores) if scores else 0
 
     return {
-        "resume_path": str(Path(resume_path).resolve()) if resume_path else "",
+        "resume_path": Path(resume_path).name if resume_path else "",
         "resume_name": resume_display_name,
         "config_path": str(Path(config_path).resolve()) if config_path else "",
         "candidate_profile_path": str(Path(candidate_profile_path).resolve()) if candidate_profile_path else "",
